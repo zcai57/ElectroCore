@@ -4,6 +4,7 @@
 #include "../Character/RobotPlayerMovement.h"
 #include "GameFramework/Character.h"
 
+#pragma region Saved Move
 bool URobotPlayerMovement::FSavedMove_Robot::CanCombineWith(const FSavedMovePtr& NewMove, ACharacter* InCharacter, float MaxDelta) const
 {
     FSavedMove_Robot* NewRobotMove = static_cast<FSavedMove_Robot*>(NewMove.Get());
@@ -46,6 +47,9 @@ void URobotPlayerMovement::FSavedMove_Robot::PrepMoveFor(ACharacter* C)
     CharacterMovement->Safe_bWantsToSprint = Saved_bWantsToSprint;
 }
 
+#pragma endregion
+
+#pragma region Network Prediction Data
 URobotPlayerMovement::FNetworkPredictionData_Client_Robot::FNetworkPredictionData_Client_Robot(const UCharacterMovementComponent& clientMovement) : Super(clientMovement)
 {
 }
@@ -68,6 +72,9 @@ FNetworkPredictionData_Client* URobotPlayerMovement::GetPredictionData_Client() 
     }
     return ClientPredictionData;
 }
+#pragma endregion
+
+#pragma region CMC
 
 void URobotPlayerMovement::UpdateFromCompressedFlags(uint8 Flags)
 {
@@ -94,7 +101,11 @@ void URobotPlayerMovement::OnMovementUpdated(float deltaSecond, const FVector& O
 
 URobotPlayerMovement::URobotPlayerMovement()
 {
+    NavAgentProps.bCanCrouch = true;
 }
+#pragma endregion
+
+#pragma region Input
 
 void URobotPlayerMovement::SprintPressed()
 {
@@ -105,3 +116,9 @@ void URobotPlayerMovement::SprintReleased()
 {
     Safe_bWantsToSprint = false;
 }
+
+void URobotPlayerMovement::CrouchPressed()
+{
+    bWantsToCrouch = !bWantsToCrouch;
+}
+#pragma endregion

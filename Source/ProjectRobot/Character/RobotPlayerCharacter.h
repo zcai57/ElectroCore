@@ -66,7 +66,7 @@ private:
 	UInputAction* HeavyAttackAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* SlideAction;
+	UInputAction* CouchAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Apparel", meta = (AllowPrivateAccess = "true"))
 	UStaticMesh* HatMesh;
@@ -127,6 +127,8 @@ protected:
 
 	void HeavyAttack(const FInputActionValue& Value);
 
+	void Crouch(const FInputActionValue& Value);
+
 	void Slide(const FInputActionValue& Value);
 
 	void SprintPressed();
@@ -143,6 +145,8 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	/** Returns Custom Movement Controller */
+	FORCEINLINE class URobotPlayerMovement* GetRobotPlayerMovement() const { return RobotPlayerMovementComponent; };
 	/** Returns ECharacterState */
 	/*UFUNCTION(BlueprintPure, Category = "Character")
 	FORCEINLINE ECharacterState GetCharacterState() { return CharacterState; }*/

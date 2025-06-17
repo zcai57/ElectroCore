@@ -176,6 +176,17 @@ void ARobotPlayerCharacter::HeavyAttack(const FInputActionValue& Value)
 {
 }
 
+void ARobotPlayerCharacter::Crouch(const FInputActionValue& Value)
+{
+	if (RobotPlayerMovementComponent)
+	{
+		RobotPlayerMovementComponent->CrouchPressed();
+	}
+	else {
+		UE_LOG(LogTemp, Warning, TEXT("RobotPlayer Movement Component is null!"));
+	}
+}
+
 void ARobotPlayerCharacter::Slide(const FInputActionValue& Value)
 {
 
@@ -249,8 +260,11 @@ void ARobotPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 		// Heavy Attack
 		EnhancedInputComponent->BindAction(HeavyAttackAction, ETriggerEvent::Triggered, this, &ARobotPlayerCharacter::HeavyAttack);
 
+		// Crouch Pressed
+		EnhancedInputComponent->BindAction(CouchAction, ETriggerEvent::Started, this, &ARobotPlayerCharacter::Crouch);
+		
 		// Slide
-		EnhancedInputComponent->BindAction(SlideAction, ETriggerEvent::Triggered, this, &ARobotPlayerCharacter::Slide);
+		/*EnhancedInputComponent->BindAction(SlideAction, ETriggerEvent::Triggered, this, &ARobotPlayerCharacter::Slide);*/
 
 		// Sprint Pressed
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &ARobotPlayerCharacter::SprintPressed);
