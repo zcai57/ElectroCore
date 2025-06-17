@@ -59,7 +59,7 @@ FNetworkPredictionData_Client* URobotPlayerMovement::GetPredictionData_Client() 
 {
     check(PawnOwner != nullptr);
 
-    if (ClientPredictionData != nullptr)
+    if (ClientPredictionData == nullptr)
     {
         URobotPlayerMovement* MutableThis = const_cast<URobotPlayerMovement*>(this);
         MutableThis->ClientPredictionData = new FNetworkPredictionData_Client_Robot(*this);
@@ -73,7 +73,7 @@ void URobotPlayerMovement::UpdateFromCompressedFlags(uint8 Flags)
 {
     Super::UpdateFromCompressedFlags(Flags);
 
-    Safe_bWantsToSprint = (Flags && FSavedMove_Character::FLAG_Custom_0) != 0;
+    Safe_bWantsToSprint = (Flags & FSavedMove_Character::FLAG_Custom_0) != 0;
 }
 
 void URobotPlayerMovement::OnMovementUpdated(float deltaSecond, const FVector& OldLocation, const FVector& OldVelocity)
