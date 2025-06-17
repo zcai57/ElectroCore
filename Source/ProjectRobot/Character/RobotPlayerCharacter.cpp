@@ -12,6 +12,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "RobotPlayerMovement.h"
 
 // Sockets
 // FrontPelvisSocket
@@ -23,7 +24,8 @@
 // RightThighSocket
 
 // Sets default values
-ARobotPlayerCharacter::ARobotPlayerCharacter()
+ARobotPlayerCharacter::ARobotPlayerCharacter(const FObjectInitializer& ObjectInitializer) 
+: Super(ObjectInitializer.SetDefaultSubobjectClass<URobotPlayerMovement>(ACharacter::CharacterMovementComponentName))
 {
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -87,6 +89,7 @@ void ARobotPlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	RobotPlayerMovementComponent = Cast<URobotPlayerMovement>(GetCharacterMovement());
 	SetDefaultApparel();
 }
 
@@ -178,6 +181,29 @@ void ARobotPlayerCharacter::Slide(const FInputActionValue& Value)
 
 }
 
+void ARobotPlayerCharacter::SprintPressed()
+{
+	if (RobotPlayerMovementComponent) {
+		RobotPlayerMovementComponent->SprintPressed();
+	}
+	else {
+		UE_LOG(LogTemp, Warning, TEXT("RobotPlayer Movement Component is null!"));
+	}
+	
+}
+
+void ARobotPlayerCharacter::SprintReleased()
+{
+	if (RobotPlayerMovementComponent)
+	{
+		RobotPlayerMovementComponent->SprintReleased();
+	}
+	else {
+		UE_LOG(LogTemp, Warning, TEXT("RobotPlayer Movement Component is null!"));
+	}
+	
+}
+
 // Called every frame
 void ARobotPlayerCharacter::Tick(float DeltaTime)
 {
@@ -217,14 +243,20 @@ void ARobotPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 		// Equip Weapon
 		EnhancedInputComponent->BindAction(EquipAction, ETriggerEvent::Triggered, this, &ARobotPlayerCharacter::Equip);
 
-		//Light Attack
+		// Light Attack
 		EnhancedInputComponent->BindAction(LightAttackAction, ETriggerEvent::Triggered, this, &ARobotPlayerCharacter::LightAttack);
 
-		//Heavy Attack
+		// Heavy Attack
 		EnhancedInputComponent->BindAction(HeavyAttackAction, ETriggerEvent::Triggered, this, &ARobotPlayerCharacter::HeavyAttack);
 
-		//Slide
+		// Slide
 		EnhancedInputComponent->BindAction(SlideAction, ETriggerEvent::Triggered, this, &ARobotPlayerCharacter::Slide);
+
+		// Sprint Pressed
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &ARobotPlayerCharacter::SprintPressed);
+
+		// Sprint Released
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &ARobotPlayerCharacter::SprintReleased);
 	}
 	else
 	{

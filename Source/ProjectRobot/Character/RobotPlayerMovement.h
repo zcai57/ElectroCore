@@ -48,4 +48,6 @@ protected:
 	virtual void OnMovementUpdated(float deltaSecond, const FVector& OldLocation, const FVector& OldVelocity) override;
 public: 
 	URobotPlayerMovement();
+	UFUNCTION(BlueprintCallable) void SprintPressed();
+	UFUNCTION(BlueprintCallable) void SprintReleased();
 };

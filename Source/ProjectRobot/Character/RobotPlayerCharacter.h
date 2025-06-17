@@ -14,12 +14,17 @@ class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
 class UAnimMontage;
+class URobotPlayerMovement;
 
 UCLASS()
 class PROJECTROBOT_API ARobotPlayerCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Movement)
+	class URobotPlayerMovement* RobotPlayerMovementComponent;
+private:
 	/** Camera boom positioning the camera behind the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	USpringArmComponent* CameraBoom;
@@ -47,6 +52,10 @@ class PROJECTROBOT_API ARobotPlayerCharacter : public ACharacter
 	/** Equip Weapon Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* EquipAction;
+
+	/** Sprint Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* SprintAction;
 
 	/** Light Attack Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
@@ -101,7 +110,7 @@ class PROJECTROBOT_API ARobotPlayerCharacter : public ACharacter
 
 public:
 	// Sets default values for this character's properties
-	ARobotPlayerCharacter();
+	ARobotPlayerCharacter(const FObjectInitializer& ObjectInitializer);
 
 protected:
 	// Called when the game starts or when spawned
@@ -119,6 +128,10 @@ protected:
 	void HeavyAttack(const FInputActionValue& Value);
 
 	void Slide(const FInputActionValue& Value);
+
+	void SprintPressed();
+
+	void SprintReleased();
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

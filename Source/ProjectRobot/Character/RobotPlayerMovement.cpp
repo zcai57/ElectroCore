@@ -95,3 +95,13 @@ void URobotPlayerMovement::OnMovementUpdated(float deltaSecond, const FVector& O
 URobotPlayerMovement::URobotPlayerMovement()
 {
 }
+
+void URobotPlayerMovement::SprintPressed()
+{
+    Safe_bWantsToSprint = true;
+}
+
+void URobotPlayerMovement::SprintReleased()
+{
+    Safe_bWantsToSprint = false;
+}
