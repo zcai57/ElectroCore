@@ -158,6 +158,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Character")
 	void EndAttackAnimation();
+
+	FCollisionQueryParams GetIgnoreCharacterParams() const;
 private:
 	float CameraLookSensitivity = 1.0f;
 	float RotationSpeed = 400.f;

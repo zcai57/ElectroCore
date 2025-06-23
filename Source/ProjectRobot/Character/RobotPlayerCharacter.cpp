@@ -88,8 +88,9 @@ ARobotPlayerCharacter::ARobotPlayerCharacter(const FObjectInitializer& ObjectIni
 void ARobotPlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-
+	// Init Movement Component
 	RobotPlayerMovementComponent = Cast<URobotPlayerMovement>(GetCharacterMovement());
+	// Set up Apparel items
 	SetDefaultApparel();
 }
 
@@ -371,5 +372,17 @@ void ARobotPlayerCharacter::EndAttackAnimation()
 	PrevStep = 0.f;
 	CurrStep = 0.f;
 	ActionState = EActionState::EAS_Unoccupied;
+}
+
+FCollisionQueryParams ARobotPlayerCharacter::GetIgnoreCharacterParams() const
+{
+	FCollisionQueryParams Params;
+
+	TArray<AActor*> CharacterChildren;
+	GetAllChildActors(CharacterChildren);
+	Params.AddIgnoredActors(CharacterChildren);
+	Params.AddIgnoredActor(this);
+
+	return Params;
 }
 

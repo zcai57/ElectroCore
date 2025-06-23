@@ -2,6 +2,8 @@
 
 
 #include "../Character/RobotPlayerMovement.h"
+#include "RobotPlayerCharacter.h"
+#include "Components/CapsuleComponent.h"
 #include "GameFramework/Character.h"
 
 #pragma region Saved Move
@@ -20,6 +22,7 @@ void URobotPlayerMovement::FSavedMove_Robot::Clear()
 {
     FSavedMove_Character::Clear();
     Saved_bWantsToSprint = 0;
+    Saved_bPrevWantsToCrouch = 0;
 }
 
 uint8 URobotPlayerMovement::FSavedMove_Robot::GetCompressedFlags() const
@@ -37,6 +40,7 @@ void URobotPlayerMovement::FSavedMove_Robot::SetMoveFor(ACharacter* C, float InD
     URobotPlayerMovement* CharacterMovement = Cast<URobotPlayerMovement>(C->GetMovementComponent());
 
     Saved_bWantsToSprint = CharacterMovement->Safe_bWantsToSprint;
+    Saved_bPrevWantsToCrouch = CharacterMovement->Safe_bPrevWantsToCrouch;
 }
 
 void URobotPlayerMovement::FSavedMove_Robot::PrepMoveFor(ACharacter* C)
@@ -45,6 +49,7 @@ void URobotPlayerMovement::FSavedMove_Robot::PrepMoveFor(ACharacter* C)
     URobotPlayerMovement* CharacterMovement = Cast<URobotPlayerMovement>(C->GetMovementComponent());
 
     CharacterMovement->Safe_bWantsToSprint = Saved_bWantsToSprint;
+    CharacterMovement->Safe_bPrevWantsToCrouch = Saved_bPrevWantsToCrouch;
 }
 
 #pragma endregion
@@ -76,6 +81,13 @@ FNetworkPredictionData_Client* URobotPlayerMovement::GetPredictionData_Client() 
 
 #pragma region CMC
 
+void URobotPlayerMovement::InitializeComponent()
+{
+    Super::InitializeComponent();
+
+    RobotCharacterOwner = Cast<ARobotPlayerCharacter>(GetOwner());
+}
+
 void URobotPlayerMovement::UpdateFromCompressedFlags(uint8 Flags)
 {
     Super::UpdateFromCompressedFlags(Flags);
@@ -97,6 +109,148 @@ void URobotPlayerMovement::OnMovementUpdated(float deltaSecond, const FVector& O
             MaxWalkSpeed = Walk_MaxWalkSpeed;
         }
     } 
+
+    Safe_bPrevWantsToCrouch = bWantsToCrouch;
+}
+
+bool URobotPlayerMovement::IsMovingOnGround() const
+{
+    return Super::IsMovingOnGround() || IsCustomMovementMode(CMOVE_Slide);
+}
+
+bool URobotPlayerMovement::CanCrouchInCurrentState() const
+{
+    return Super::CanCrouchInCurrentState() && IsMovingOnGround();
+}
+
+void URobotPlayerMovement::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
+{
+    // Press crouch second time, enter crouch
+    if (MovementMode == MOVE_Walking && Safe_bPrevWantsToCrouch)
+    {
+        FHitResult PotentialSlideSurface;
+        UE_LOG(LogTemp, Warning, TEXT("Enough Vel: %s"), (Velocity.SizeSquared() > pow(Slide_EnterSpeed, 2)) ? TEXT("true") : TEXT("false"));
+        UE_LOG(LogTemp, Warning, TEXT("Slidable Surface: %s"), GetSlideSurface(PotentialSlideSurface) ? TEXT("true") : TEXT("false"));
+        if (Velocity.SizeSquared() > pow(Slide_EnterSpeed, 2) && GetSlideSurface(PotentialSlideSurface))
+        {
+            EnterSlide();
+        }
+
+    }
+    // Press crouch when sliding, exist slide
+    if (IsCustomMovementMode(CMOVE_Slide) && !bWantsToCrouch)
+    {
+        ExitSlide();
+    }
+
+    Super::UpdateCharacterStateBeforeMovement(DeltaSeconds);
+}
+
+void URobotPlayerMovement::PhysCustom(float deltaTime, int32 Iterations)
+{
+    Super::PhysCustom(deltaTime, Iterations);
+
+    switch (CustomMovementMode)
+    {
+    case CMOVE_Slide:
+        PhysSlide(deltaTime, Iterations);
+        break;
+    default:
+        UE_LOG(LogTemp, Fatal, TEXT("Invalid Movement Mode"));
+    }
+}
+
+void URobotPlayerMovement::EnterSlide()
+{
+    // Press crouch second time will set it to false, to keep state, set to true
+    bWantsToCrouch = true;
+    Velocity += Velocity.GetSafeNormal2D() * Slide_EnterImpulse;
+    SetMovementMode(MOVE_Custom, CMOVE_Slide);
+}
+
+void URobotPlayerMovement::ExitSlide()
+{
+    bWantsToCrouch = false;
+
+    FQuat NewRotation = FRotationMatrix::MakeFromXZ(UpdatedComponent->GetForwardVector().GetSafeNormal2D(), FVector::UpVector).ToQuat();
+    FHitResult Hit;
+    SafeMoveUpdatedComponent(FVector::ZeroVector, NewRotation, true, Hit);
+    SetMovementMode(MOVE_Walking);
+}
+
+;void URobotPlayerMovement::PhysSlide(float deltaTime, int32 Iterations)
+{
+    if (deltaTime < MIN_TICK_TIME) {
+        return;
+    }
+    
+    FHitResult SurfaceHit;
+    // Check Vel and valid surface before update
+    if (!GetSlideSurface(SurfaceHit) || Velocity.SizeSquared() < pow(Slide_ExitSpeed, 2))
+    {
+        ExitSlide();
+        StartNewPhysics(deltaTime, Iterations);
+        return;
+    }
+
+    // Surface Gravity
+    Velocity += Slide_GravityForce * FVector::DownVector * deltaTime; // v += a * dt;
+
+    // Strafe
+    if (FMath::Abs(FVector::DotProduct(Acceleration.GetSafeNormal(), UpdatedComponent->GetRightVector())) > .5) // Acceleration: input vector
+    {
+        Acceleration = Acceleration.ProjectOnTo(UpdatedComponent->GetRightVector());
+    }
+    else {
+        Acceleration = FVector::ZeroVector;
+    }
+
+    // Calc Velocity
+    if (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity())
+    {
+        CalcVelocity(deltaTime, Slide_Friction, true, GetMaxBrakingDeceleration());
+        //GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, FString::Printf(TEXT("Velocity: %f"), Velocity.Size()));
+    }
+    ApplyRootMotionToVelocity(deltaTime);
+
+    // Perform Move
+    ++Iterations;
+    bJustTeleported = false;
+
+    FVector OldLocation = UpdatedComponent->GetComponentLocation();
+    FQuat OldRotation = UpdatedComponent->GetComponentRotation().Quaternion();
+    FHitResult Hit(1.f);
+    FVector Adjusted = Velocity * deltaTime; // x = v * dt
+    FVector VelPlanetDir = FVector::VectorPlaneProject(Velocity, SurfaceHit.Normal).GetSafeNormal();
+    FQuat NewRotation = FRotationMatrix::MakeFromXZ(VelPlanetDir, SurfaceHit.Normal).ToQuat();
+    SafeMoveUpdatedComponent(Adjusted, NewRotation, true, Hit);
+
+    if (Hit.Time < 1.f)
+    {
+        HandleImpact(Hit, deltaTime, Adjusted);
+        SlideAlongSurface(Adjusted, (1.f - Hit.Time), Hit.Normal, Hit, true);
+    }
+
+    // Check Vel and valid surface before update
+    FHitResult NewSurfaceHit;
+    if (!GetSlideSurface(NewSurfaceHit) || Velocity.SizeSquared() < pow(Slide_ExitSpeed, 2))
+    {
+        ExitSlide();
+    }
+
+    // Update Outgoing Velocity & Acceleration
+    if (!bJustTeleported && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity())
+    {
+        Velocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / deltaTime;
+    }
+}
+
+bool URobotPlayerMovement::GetSlideSurface(FHitResult& Hit) const
+{
+    FVector Start = UpdatedComponent->GetComponentLocation();
+    FVector End = Start + CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 2.f * FVector::DownVector;
+    FName ProfileName = TEXT("BlockAll");
+    return GetWorld()->LineTraceSingleByProfile(Hit, Start, End, ProfileName, RobotCharacterOwner->GetIgnoreCharacterParams());
 }
 
 URobotPlayerMovement::URobotPlayerMovement()
@@ -120,5 +274,9 @@ void URobotPlayerMovement::SprintReleased()
 void URobotPlayerMovement::CrouchPressed()
 {
     bWantsToCrouch = !bWantsToCrouch;
+}
+bool URobotPlayerMovement::IsCustomMovementMode(ECustomMovementMode InCustomMovementMode) const
+{
+    return MovementMode == MOVE_Custom && CustomMovementMode == InCustomMovementMode;
 }
 #pragma endregion
