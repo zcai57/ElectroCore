@@ -14,15 +14,6 @@
 #include "InputActionValue.h"
 #include "RobotPlayerMovement.h"
 
-// Sockets
-// FrontPelvisSocket
-// BackPelvisSocket
-// Spline3Socket
-// RightHandSocket
-// HeadSocket
-// LeftThighSocket
-// RightThighSocket
-
 // Sets default values
 ARobotPlayerCharacter::ARobotPlayerCharacter(const FObjectInitializer& ObjectInitializer) 
 : Super(ObjectInitializer.SetDefaultSubobjectClass<URobotPlayerMovement>(ACharacter::CharacterMovementComponentName))
@@ -216,6 +207,27 @@ void ARobotPlayerCharacter::SprintReleased()
 	
 }
 
+void ARobotPlayerCharacter::Jump()
+{
+	// Boosting
+	if (RobotPlayerMovementComponent->IsFalling() && !RobotPlayerMovementComponent->bWantsToBoost)
+	{
+		RobotPlayerMovementComponent->BoostPressed();
+	}
+	else {
+		ACharacter::Jump();
+	}
+}
+
+void ARobotPlayerCharacter::StopJumping()
+{
+	if(RobotPlayerMovementComponent->bWantsToBoost)
+	{
+		RobotPlayerMovementComponent->BoostReleased();
+	}
+	ACharacter::StopJumping();	
+}
+
 // Called every frame
 void ARobotPlayerCharacter::Tick(float DeltaTime)
 {
@@ -243,8 +255,8 @@ void ARobotPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
 
 		// Jumping
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ARobotPlayerCharacter::Jump);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ARobotPlayerCharacter::StopJumping);
 
 		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ARobotPlayerCharacter::Move);

@@ -125,7 +125,7 @@ bool URobotPlayerMovement::CanCrouchInCurrentState() const
 
 void URobotPlayerMovement::UpdateCharacterStateBeforeMovement(float DeltaSeconds)
 {
-    // Press crouch second time, enter crouch
+    // Press crouch enter crouch
     if (MovementMode == MOVE_Walking && Safe_bPrevWantsToCrouch)
     {
         FHitResult PotentialSlideSurface;
@@ -138,6 +138,7 @@ void URobotPlayerMovement::UpdateCharacterStateBeforeMovement(float DeltaSeconds
 
     }
     // Press crouch when sliding, exist slide
+
     if (IsCustomMovementMode(CMOVE_Slide) && !bWantsToCrouch)
     {
         ExitSlide();
@@ -154,6 +155,9 @@ void URobotPlayerMovement::PhysCustom(float deltaTime, int32 Iterations)
     {
     case CMOVE_Slide:
         PhysSlide(deltaTime, Iterations);
+        break;
+    case CMOVE_Boost:
+        PhysBoost(deltaTime, Iterations);
         break;
     default:
         UE_LOG(LogTemp, Fatal, TEXT("Invalid Movement Mode"));
@@ -209,7 +213,6 @@ void URobotPlayerMovement::ExitSlide()
     if (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity())
     {
         CalcVelocity(deltaTime, Slide_Friction, true, GetMaxBrakingDeceleration());
-        //GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, FString::Printf(TEXT("Velocity: %f"), Velocity.Size()));
     }
     ApplyRootMotionToVelocity(deltaTime);
 
@@ -253,6 +256,90 @@ bool URobotPlayerMovement::GetSlideSurface(FHitResult& Hit) const
     return GetWorld()->LineTraceSingleByProfile(Hit, Start, End, ProfileName, RobotCharacterOwner->GetIgnoreCharacterParams());
 }
 
+void URobotPlayerMovement::EnterBoost()
+{
+    const FVector Forward = UpdatedComponent->GetForwardVector().GetSafeNormal();
+    const float ExistingForwardSpeed = FVector::DotProduct(Velocity, Forward);
+    // Clamp forward momentum
+    const float ClampedForwardSpeed = FMath::Min(ExistingForwardSpeed + Boost_ForwardImpulse, Boost_MaxForwardVelocity);
+    // Update NewVelocity
+    FVector NewVelocity = Velocity - (Forward * ExistingForwardSpeed);
+    NewVelocity += Forward * Boost_ForwardImpulse + FVector::UpVector * Boost_UpImpulse;
+    Velocity = NewVelocity;
+   
+    SetMovementMode(MOVE_Custom, CMOVE_Boost);
+}
+
+void URobotPlayerMovement::ExitBoost()
+{
+    FQuat NewRotation = FRotationMatrix::MakeFromXZ(UpdatedComponent->GetForwardVector().GetSafeNormal2D(), FVector::UpVector).ToQuat();
+    FHitResult Hit;
+    SafeMoveUpdatedComponent(FVector::ZeroVector, NewRotation, true, Hit);
+    SetMovementMode(MOVE_Walking);
+}
+
+void URobotPlayerMovement::PhysBoost(float deltaTime, int32 Iterations)
+{
+    if (deltaTime < MIN_TICK_TIME) {
+        return;
+    }
+
+    FHitResult SurfaceHit;
+    // Check Vel and valid surface before update
+    if (GetBoostCeiling(SurfaceHit))
+    {
+        ExitBoost();
+        StartNewPhysics(deltaTime, Iterations);
+        return;
+    }
+
+    // Surface Gravity
+    Velocity += Boost_GravityForce * FVector::DownVector * deltaTime; // v += a * dt;
+    ApplyRootMotionToVelocity(deltaTime);
+
+    // Perform Move
+    ++Iterations;
+    bJustTeleported = false;
+
+    FVector OldLocation = UpdatedComponent->GetComponentLocation();
+    FQuat OldRotation = UpdatedComponent->GetComponentRotation().Quaternion();
+    FHitResult Hit(1.f);
+    FVector Adjusted = Velocity * deltaTime; // x = v * dt
+    FQuat NewRotation = FRotationMatrix::MakeFromXZ(UpdatedComponent->GetForwardVector().GetSafeNormal2D(), FVector::UpVector).ToQuat();
+    SafeMoveUpdatedComponent(Adjusted, NewRotation, true, Hit);
+
+    if (Hit.Time < 1.f)
+    {
+        HandleImpact(Hit, deltaTime, Adjusted);
+    }
+
+    //// Check Vel and valid surface before update
+    FHitResult NewSurfaceHit;
+    if (GetBoostCeiling(NewSurfaceHit) || Velocity.SizeSquared() < pow(Slide_ExitSpeed, 2))
+    {       
+        ExitBoost();
+    }
+
+    // Update Outgoing Velocity & Acceleration
+    if (!bJustTeleported && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity())
+    {
+        Velocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / deltaTime;
+    }
+}
+
+/// <summary>
+/// Maybe not needed?
+/// </summary>
+/// <param name="Hit"></param>
+/// <returns></returns>
+bool URobotPlayerMovement::GetBoostCeiling(FHitResult& Hit) const
+{
+    FVector Start = UpdatedComponent->GetComponentLocation();
+    FVector End = Start + CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 2.f * FVector::UpVector;
+    FName ProfileName = TEXT("BlockAll");
+    return GetWorld()->LineTraceSingleByProfile(Hit, Start, End, ProfileName, RobotCharacterOwner->GetIgnoreCharacterParams());
+}
+
 URobotPlayerMovement::URobotPlayerMovement()
 {
     NavAgentProps.bCanCrouch = true;
@@ -269,6 +356,20 @@ void URobotPlayerMovement::SprintPressed()
 void URobotPlayerMovement::SprintReleased()
 {
     Safe_bWantsToSprint = false;
+}
+
+void URobotPlayerMovement::BoostPressed()
+{
+    Safe_bWantsToBoost = true;
+    bWantsToBoost = true;
+    EnterBoost();
+}
+
+void URobotPlayerMovement::BoostReleased()
+{
+    Safe_bWantsToBoost = false;
+    bWantsToBoost = false;
+    ExitBoost();
 }
 
 void URobotPlayerMovement::CrouchPressed()

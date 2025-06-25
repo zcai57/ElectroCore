@@ -134,6 +134,10 @@ protected:
 	void SprintPressed();
 
 	void SprintReleased();
+
+	void Jump();
+
+	void StopJumping();
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
