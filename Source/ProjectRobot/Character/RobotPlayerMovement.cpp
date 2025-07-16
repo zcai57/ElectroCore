@@ -257,16 +257,16 @@ bool URobotPlayerMovement::GetSlideSurface(FHitResult& Hit) const
 }
 
 void URobotPlayerMovement::EnterBoost()
-{
+{  
+    // Start Timer
+    Boost_TimeElapsed = 0;
+    // Clamp Initial Forward Speed
     const FVector Forward = UpdatedComponent->GetForwardVector().GetSafeNormal();
     const float ExistingForwardSpeed = FVector::DotProduct(Velocity, Forward);
     // Clamp forward momentum
     const float ClampedForwardSpeed = FMath::Min(ExistingForwardSpeed + Boost_ForwardImpulse, Boost_MaxForwardVelocity);
     // Update NewVelocity
     FVector NewVelocity = Velocity - (Forward * ExistingForwardSpeed);
-    NewVelocity += Forward * Boost_ForwardImpulse + FVector::UpVector * Boost_UpImpulse;
-    Velocity = NewVelocity;
-   
     SetMovementMode(MOVE_Custom, CMOVE_Boost);
 }
 
@@ -285,12 +285,25 @@ void URobotPlayerMovement::PhysBoost(float deltaTime, int32 Iterations)
     }
 
     FHitResult SurfaceHit;
-    // Check Vel and valid surface before update
-    if (GetBoostCeiling(SurfaceHit))
+    // Check Vel, valid surface, boost duraction before update
+    if (GetBoostCeiling(SurfaceHit) || Boost_TimeElapsed > Boost_MaxBoostTime)
     {
         ExitBoost();
         StartNewPhysics(deltaTime, Iterations);
         return;
+    }
+
+    if (bWantsToBoost)
+    {
+        Boost_TimeElapsed += deltaTime;
+
+        float Alpha = FMath::Clamp(Boost_TimeElapsed / Boost_MaxBoostTime, 0.f, 1.f);
+
+        // Smooth vertical boost: starts slow, peaks mid-boost, then slows down
+        float VerticalBoost = FMath::InterpEaseInOut(0.f, Boost_MaxUpwardVelocity, Alpha, 1.f);
+
+        // Remove old upward velocity (if needed) and apply new vertical boost
+        Velocity.Z = VerticalBoost;
     }
 
     // Surface Gravity
@@ -313,7 +326,7 @@ void URobotPlayerMovement::PhysBoost(float deltaTime, int32 Iterations)
         HandleImpact(Hit, deltaTime, Adjusted);
     }
 
-    //// Check Vel and valid surface before update
+    // Check Vel and valid surface before update
     FHitResult NewSurfaceHit;
     if (GetBoostCeiling(NewSurfaceHit) || Velocity.SizeSquared() < pow(Slide_ExitSpeed, 2))
     {       

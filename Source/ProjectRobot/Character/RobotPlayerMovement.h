@@ -54,15 +54,18 @@ class PROJECTROBOT_API URobotPlayerMovement : public UCharacterMovementComponent
 	UPROPERTY(EditDefaultsOnly) float Walk_MaxWalkSpeed;
 
 	UPROPERTY(EditDefaultsOnly) float Slide_EnterSpeed = 500;
-	UPROPERTY(EditDefaultsOnly) float Slide_ExitSpeed = 300;
+	UPROPERTY(EditDefaultsOnly) float Slide_ExitSpeed = 400;
 	UPROPERTY(EditDefaultsOnly) float Slide_EnterImpulse = 500;
 	UPROPERTY(EditDefaultsOnly) float Slide_GravityForce = 5000;
-	UPROPERTY(EditDefaultsOnly) float Slide_Friction = 1.3;
+	UPROPERTY(EditDefaultsOnly) float Slide_Friction = 0.3;
 
 	UPROPERTY(EditDefaultsOnly) float Boost_UpImpulse = 1000;
 	UPROPERTY(EditDefaultsOnly) float Boost_ForwardImpulse = 300;
-	UPROPERTY(EditDefaultsOnly) float Boost_MaxForwardVelocity = 800;
+	UPROPERTY(EditDefaultsOnly) float Boost_MaxForwardVelocity = 1000;
+	UPROPERTY(EditDefaultsOnly) float Boost_MaxUpwardVelocity = 2000;
 	UPROPERTY(EditDefaultsOnly) float Boost_GravityForce = 1000;
+	UPROPERTY(EditDefaultsOnly) float Boost_MaxBoostTime = 1.5;
+	float Boost_TimeElapsed = 0;
 	
 	
 	// Transient

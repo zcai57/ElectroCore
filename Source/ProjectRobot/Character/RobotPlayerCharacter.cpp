@@ -14,6 +14,8 @@
 #include "InputActionValue.h"
 #include "RobotPlayerMovement.h"
 
+#define DEBUG_MOVEMENT 0
+
 // Sets default values
 ARobotPlayerCharacter::ARobotPlayerCharacter(const FObjectInitializer& ObjectInitializer) 
 : Super(ObjectInitializer.SetDefaultSubobjectClass<URobotPlayerMovement>(ACharacter::CharacterMovementComponentName))
@@ -237,6 +239,12 @@ void ARobotPlayerCharacter::Tick(float DeltaTime)
 	{
 		AnimationSteps();
 	}
+#if DEBUG_MOVEMENT == 1
+	FString VelocityString = RobotPlayerMovementComponent->Velocity.ToString();
+	GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Red, FString::Printf(TEXT("Velocity: %s"), *VelocityString));
+
+#endif // DEBUGMOVEMENT
+
 }
 
 // Called to bind functionality to input
