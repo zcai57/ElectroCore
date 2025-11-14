@@ -41,7 +41,7 @@ void UInteractableComponent::BeginPlay()
 
 	// Init widget component
 	InteractWidget = Owner->FindComponentByClass<UWidgetComponent>();
-	if (InteractWidgetClass)
+	if (IsValid(InteractWidgetClass))
 	{
 		InteractWidget->SetWidgetClass(InteractWidgetClass);
 	}

@@ -3,28 +3,76 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AbilitySystemInterface.h"
 #include "GameFramework/Character.h"
-#include "../Interface/IEnemyAI.h"
+#include "ProjectRobot/Interface/IEnemyAI.h"
 #include "Enemy.generated.h"
 
+class UAttackComponent;
+struct FGameplayTag;
+
+class AEnemyControllerBase;
+class UMotionWarpingComponent;
+class URobotAbilitySystemComponent;
+class UGameplayAbility;
+class UStartingAttributeSet;
+class UAbilitySystemComponent;
+
 UCLASS()
-class PROJECTROBOT_API AEnemy : public ACharacter, public IIEnemyAI
+class PROJECTROBOT_API AEnemy : public ACharacter, public IIEnemyAI, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning", meta = (AllowPrivateAccess = "true"))
+	FRotator RotationRate = FRotator(0.0f, 180.f, 0.f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning", meta = (AllowPrivateAccess = "true"))
+	bool bDrawDebugDirection = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning", meta = (AllowPrivateAccess = "true"))
+	bool bDrawDebugAttack = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Apparel", meta = (AllowPrivateAccess = "true"))
+	UChildActorComponent* WeaponChild;
 
 public:
 	// Sets default values for this character's properties
 	AEnemy();
+	
+	void SetStrafingMovement(bool bEnable);
 
-
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	virtual void ClampMotionWarpDist(float dist);
 protected:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
+
+	/** Motion Warping component */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Motion Warping", meta = (AllowPrivateAccess = "true"))
+	UMotionWarpingComponent* MotionWarpingComp;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Attack", meta = (AllowPrivateAccess = "true"))
+	UAttackComponent* AttackComponent;
+
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override { return AbilitySystemComponent; }
+
+	UPROPERTY(EditAnywhere, Category = "GAS|Abilities")
+	TArray<TSubclassOf<UGameplayAbility>> StartupAbilities;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS", meta = (AllowPrivateAccess = "true"))
+	const class UStartingAttributeSet* StartAttributeSet;
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	virtual void UpdateWalkSpeed(float NewSpeed);
 
+	void AddCharacterAbilities();
+	
+	void OnImmobileTagChanged(FGameplayTag, int32 NewCount);
 
+	void DrawDebugDirection();
+	
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -34,4 +82,12 @@ public:
 
 	virtual FVector GetDesiredAttackAngle() const PURE_VIRTUAL(AEnemyCharacter::GetDesiredAttackAngle, return FVector::ZeroVector;);
 
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	bool IsImmobile();
+
+	bool IsStrafing();
+private:
+	AEnemyControllerBase* EnemyController;
+	bool bImmobile = false;
+	bool bIsStrafing = false;
 };

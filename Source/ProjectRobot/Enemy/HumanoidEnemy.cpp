@@ -14,7 +14,7 @@ void AHumanoidEnemy::BeginPlay()
 
 void AHumanoidEnemy::Tick(float deltaTime)
 {
-
+	Super::Tick(deltaTime);
 }
 
 FVector AHumanoidEnemy::GetDesiredAttackAngle() const

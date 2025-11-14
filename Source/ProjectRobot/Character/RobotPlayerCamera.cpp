@@ -36,4 +36,25 @@ void ARobotPlayerCamera::UpdateViewTarget(FTViewTarget& OutVT, float DeltaTime)
             OutVT.POV.Location += Offset;
         }
     }
+    // Camera Offset
+   /* const float Target = bRaiseActive ? 1.f : 0.f;
+    const float Speed = bRaiseActive ? CameraOffsetBlendInTime : CameraOffsetBlendOutTime;
+    Alpha = FMath::FInterpTo(Alpha, Target, DeltaTime, Speed);
+
+    CurrentOffset = FMath::Lerp(0.f, CameraOffset, Alpha);
+
+    OutVT.POV.Location += CurrentOffset;*/
 }
+
+//void ARobotPlayerCamera::ActivateCamRaise(FVector InCameraOffset, float InBlendInSpeed, float InBlendOutSpeed)
+//{
+//    if (InCameraOffset != FVector::ZeroVector) CameraOffset = InCameraOffset;
+//    if (InBlendInSpeed > 0.f) CameraOffsetBlendInTime = InBlendInSpeed;
+//    if (InBlendOutSpeed > 0.f) CameraOffsetBlendOutTime = InBlendOutSpeed;
+//    bRaiseActive = true;
+//}
+//
+//void ARobotPlayerCamera::DeactivateCamRaise()
+//{
+//    bRaiseActive = false;
+//}
