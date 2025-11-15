@@ -68,33 +68,33 @@ void UGA_MontageAbility::OnMontageEnd(FGameplayEventData Payload)
 
 void UGA_MontageAbility::OnDealDamage(FGameplayEventData Payload)
 {
-	check(CurrentActorInfo);
-
-	const FHitResult* Hit = Payload.ContextHandle.GetHitResult();
-
-	AActor* Target = Hit->GetActor();
-	AActor* CurActor = CurrentActorInfo->AvatarActor.Get();
-	if (!Target) return;
-
-	// Send HitReact Event
-	if (Hit)
-	{
-		Payload.EventTag = FGameplayTag::RequestGameplayTag("Event.HitReact");
-		Payload.Target = Target;
-		Payload.Instigator = GetAvatarActorFromActorInfo(); // the attacker
-		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Target, Payload.EventTag, Payload);
-	}
-	
-	// Send HitStop Event
-	FGameplayEventData Data;
-	FGameplayTag hitStopTag = FGameplayTag::RequestGameplayTag("Event.HitStop");
-	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Target, hitStopTag, Data);
-
-	check(CurActor);
-	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(CurrentActorInfo->AvatarActor.Get(), hitStopTag, Data);
-
-	// --- Post hook for child abilities (e.g., Dodge-Attack adds a special GE, camera pulse, tag, etc.) ---
-	K2_OnPostDealDamage(Payload, *Hit, Target, CurActor);
+	// check(CurrentActorInfo);
+	//
+	// const FHitResult* Hit = Payload.ContextHandle.GetHitResult();
+	//
+	// AActor* Target = Hit->GetActor();
+	// AActor* CurActor = CurrentActorInfo->AvatarActor.Get();
+	// if (!Target) return;
+	//
+	// // Send HitReact Event
+	// if (Hit)
+	// {
+	// 	Payload.EventTag = FGameplayTag::RequestGameplayTag("Event.HitReact");
+	// 	Payload.Target = Target;
+	// 	Payload.Instigator = GetAvatarActorFromActorInfo(); // the attacker
+	// 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Target, Payload.EventTag, Payload);
+	// }
+	//
+	// // Send HitStop Event
+	// FGameplayEventData Data;
+	// FGameplayTag hitStopTag = FGameplayTag::RequestGameplayTag("Event.HitStop");
+	// UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Target, hitStopTag, Data);
+	//
+	// check(CurActor);
+	// UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(CurrentActorInfo->AvatarActor.Get(), hitStopTag, Data);
+	//
+	// // --- Post hook for child abilities (e.g., Dodge-Attack adds a special GE, camera pulse, tag, etc.) ---
+	// K2_OnPostDealDamage(Payload, *Hit, Target, CurActor);
 }
 
 void UGA_MontageAbility::K2_OnPostDealDamage_Implementation(const FGameplayEventData& Payload, const FHitResult& Hit, AActor* Target, AActor* InstigatorActor)

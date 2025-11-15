@@ -29,13 +29,13 @@ public:
 	UAttackComponent();
 
 	UFUNCTION(BlueprintCallable)
-	void StartDamageTrace(FName Key, const UAttackTraceData* TraceData);
+	void StartDamageTrace(FName Key, UAttackTraceData* TraceData);
 
 	UFUNCTION(BlueprintCallable)
 	void StartCounterTrace(const FTraceWindow& TraceData);
 
 	UFUNCTION(BlueprintCallable)
-	void EndDamageTrace(const UAttackTraceData* TraceData);
+	void EndDamageTrace(UAttackTraceData* TraceData);
 
 	UFUNCTION(BlueprintCallable)
 	void EndCounterTrace();
@@ -47,6 +47,12 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Debug")
 	bool bEnableDebug = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Attack")
+	float LightAtkKnockback = 500.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Attack")
+	float HeavyAtkKnockback = 1000.f;
 
 protected:
 	// Called when the game starts
@@ -65,6 +71,9 @@ protected:
 	int32 OtherBodyIndex,
 	bool bFromSweep,
 	const FHitResult& SweepResult);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void HandleHitReactionAndHitStop(FGameplayEventData& Payload);
 
 	void SendHitGameplayCue( AActor* TargetActor,
 	UPrimitiveComponent* TargetComp);
@@ -90,7 +99,7 @@ private:
 	AWeaponBase* boundWeapon;
 
 	FCollisionQueryParams GetIgnoreCharacterParams() const;
-	const UAttackData* currData;
+	UAttackTraceData* currData;
 	AActor* currOwner;
 };
 

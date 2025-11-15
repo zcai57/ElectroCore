@@ -15,6 +15,13 @@ enum class EAttackDeliveryType : uint8
 	Projectile,
 	AOE
 };
+
+UENUM(BlueprintType)
+enum class EAttackMagnitude: uint8
+{
+	Light UMETA(DisplayName = "Light"), 
+	Heavy UMETA(DisplayName = "Heavy"),
+};
 /**
  * 
  */
@@ -25,6 +32,12 @@ class PROJECTROBOT_API UAttackTraceData : public UPrimaryDataAsset
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FTraceWindow TraceData;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float HitStopDuration;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	EAttackMagnitude AttackMagnitude;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	EAttackDeliveryType DeliveryType = EAttackDeliveryType::Melee;

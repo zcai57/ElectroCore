@@ -17,6 +17,7 @@
 #include "RobotPlayerMovement.h"
 #include "MotionWarpingComponent.h"
 #include "../Vehicle/Jet.h"
+#include "Kismet/GameplayStatics.h"
 #include "ProjectRobot/ActorComponents/AttackComponent.h"
 #include "ProjectRobot/Weapon/WeaponBase.h"
 
@@ -183,24 +184,53 @@ void ARobotPlayerCharacter::Move(const FInputActionValue& Value)
 
 void ARobotPlayerCharacter::Look(const FInputActionValue& Value)
 {
-	// input is a Vector2D
-	FVector2D LookAxisVector = Value.Get<FVector2D>();
+	// // input is a Vector2D
+	// FVector2D LookAxisVector = Value.Get<FVector2D>();
+	//
+	//
+	// // Rotate CameraBoom using the Look input (X for Yaw, Y for Pitch)
+	// FRotator NewRotation = Controller->GetControlRotation();
+	// if (!bIsFocused) NewRotation.Yaw += LookAxisVector.X * CameraLookSensitivity;
+	// NewRotation.Pitch = FMath::Clamp(NewRotation.Pitch + LookAxisVector.Y * CameraLookSensitivity, -60.f, 60.f); // Limit pitch range
+	//
+	// //CameraBoom->SetRelativeRotation(NewRotation);
+	// const FRotator Rotation = Controller->GetControlRotation();
+	// Controller->SetControlRotation(NewRotation);
+	FVector2D LookInput = Value.Get<FVector2D>();
+	FRotator CurrentRot = Controller->GetControlRotation();
+	
+	
+	if (bIsFocused)
+	{
+		// --- SOFT INTERPOLATED CAMERA IN FOCUS MODE ---
+		FRotator TargetRot = CurrentRot;
+		TargetRot.Yaw += LookInput.X * CameraLookSensitivity;
+		TargetRot.Pitch = FMath::Clamp(CurrentRot.Pitch + LookInput.Y * CameraLookSensitivity, -60.f, 60.f);
+		
+		FRotator NewRot = FMath::RInterpTo(CurrentRot, TargetRot, GetWorld()->GetDeltaSeconds(), LookInterpSpeed);
 
+		Controller->SetControlRotation(NewRot);
+	}
+	else
+	{
+		// --- INSTANT CAMERA IN FREE LOOK MODE ---
+		FRotator NewRot = CurrentRot;
+		NewRot.Yaw += LookInput.X * CameraLookSensitivity;
+		NewRot.Pitch = FMath::Clamp(CurrentRot.Pitch + LookInput.Y * CameraLookSensitivity, -60.f, 60.f);
 
-	// Rotate CameraBoom using the Look input (X for Yaw, Y for Pitch)
-	FRotator NewRotation = Controller->GetControlRotation();
-	if (!bIsFocused) NewRotation.Yaw += LookAxisVector.X * CameraLookSensitivity;
-	NewRotation.Pitch = FMath::Clamp(NewRotation.Pitch + LookAxisVector.Y * CameraLookSensitivity, -60.f, 60.f); // Limit pitch range
-
-	//CameraBoom->SetRelativeRotation(NewRotation);
-	const FRotator Rotation = Controller->GetControlRotation();
-	Controller->SetControlRotation(NewRotation);
+		Controller->SetControlRotation(NewRot);
+	}
 }
 
 void ARobotPlayerCharacter::Equip(const FInputActionValue& Value)
 {
 }
 
+/// Determine what atk ability to trigger
+/// Normal: Light Atk Gameplay Ability
+/// Dodge: Dodge Atk
+/// Block: Block Atk
+/// @param Value 
 void ARobotPlayerCharacter::LightAttack(const FInputActionValue& Value)
 {
 	if (!AbilitySystemComponent || !LightComboTag.IsValid()) return;
@@ -225,6 +255,8 @@ void ARobotPlayerCharacter::LightAttack(const FInputActionValue& Value)
 	}
 }
 
+/// Trigger HeavyAtk Gameplay Ability
+/// @param Value 
 void ARobotPlayerCharacter::HeavyAttack(const FInputActionValue& Value)
 {
 	if (!AbilitySystemComponent || !HeavyAttackTag.IsValid()) return;
@@ -232,6 +264,8 @@ void ARobotPlayerCharacter::HeavyAttack(const FInputActionValue& Value)
 
 }
 
+/// Not used rn. 
+/// @param bClientSimulation 
 void ARobotPlayerCharacter::Crouch(bool bClientSimulation)
 {
 	/*Super::Crouch(bClientSimulation);*/
@@ -245,6 +279,9 @@ void ARobotPlayerCharacter::Crouch(bool bClientSimulation)
 	}
 }
 
+/// Toggle Focus Mode
+/// Focus: Add tag
+/// UnFocus: Change movement mode and reset Focus Actor
 void ARobotPlayerCharacter::Focus()
 {
 	// 不是Focus状态，进入Focus
@@ -266,17 +303,21 @@ void ARobotPlayerCharacter::Focus()
 	}
 }
 
+
 void ARobotPlayerCharacter::Slide()
 {
 
 }
 
+/// Trigger Dodge Gameplay Ability
 void ARobotPlayerCharacter::Dodge()
 {
 	if (!AbilitySystemComponent || !DodgeTag.IsValid()) return;
 	AbilitySystemComponent->TryActivateAbilitiesByTag(DodgeTag);
 }
 
+
+/// Trigger AbilityAction 1
 void ARobotPlayerCharacter::HandleAbilityAction1()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Handle Ability 1"));
@@ -292,6 +333,7 @@ void ARobotPlayerCharacter::HandleAbilityAction1()
 	}
 }
 
+/// Advance State GameplayAbility
 void ARobotPlayerCharacter::AdvanceState()
 {
 	if (!AbilitySystemComponent || !AdvanceTag.IsValid()) return;
@@ -348,6 +390,7 @@ void ARobotPlayerCharacter::StopJumping()
 	}
 	ACharacter::StopJumping();	
 }
+
 
 void ARobotPlayerCharacter::Input_CrouchStarted()
 {

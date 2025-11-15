@@ -208,42 +208,6 @@ void UGA_LightAtkCombo::AdvanceCombo()
 
 void UGA_LightAtkCombo::OnDealDamage(FGameplayEventData Payload)
 {
-	//check(CurrentActorInfo);
-
-	//const FHitResult* Hit = Payload.ContextHandle.GetHitResult();
-
-	//AActor* Target = Hit->GetActor();
-	//AActor* CurActor = CurrentActorInfo->AvatarActor.Get();
-	//if (!Target) return;
-
-	//// Send HitReact Event
-	//if (Hit)
-	//{
-	//	Payload.EventTag = FGameplayTag::RequestGameplayTag("Event.HitReact");
-	//	Payload.Target = Target;
-	//	Payload.Instigator = GetAvatarActorFromActorInfo(); // the attacker
-	//	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Target, Payload.EventTag, Payload);
-	//}
-	//
-
-	//// Send HitStop Event
-	//FGameplayEventData Data;
-	//FGameplayTag hitStopTag = FGameplayTag::RequestGameplayTag("Event.HitStop");
-	//UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Target, hitStopTag, Data);
-	//
-	//check(CurActor);
-	//UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(CurrentActorInfo->AvatarActor.Get(), hitStopTag, Data);
-
-	//// Execute LightAtkHit GameplayCue
-	//UAbilitySystemComponent* ASC = CurrentActorInfo->AbilitySystemComponent.Get();
-	//FGameplayCueParameters Params;
-	//Params.Instigator = CurActor;                
-	//Params.EffectCauser = Target;             
-	//Params.Location = Hit->ImpactPoint;            
-	//Params.Normal = Hit->ImpactNormal;             
-	//Params.TargetAttachComponent = Target->FindComponentByClass<USkeletalMeshComponent>(); 
-
-	//ASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag("GameplayCue.LightAttack"), Params);
 	Super::OnDealDamage(Payload);
 }
 

@@ -43,10 +43,7 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "HitReact|Anim")
 	UAnimMontage* HitReactRight = nullptr;
-
-	UPROPERTY(EditDefaultsOnly, Category = "HitReact|Anim")
-	float XYPushStrength = 400.f;
-
+	
 	UPROPERTY(EditDefaultsOnly, Category = "HitReact|Anim")
 	float ZKick = 20.f;
 

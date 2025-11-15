@@ -7,12 +7,13 @@
 #include "Logging/LogMacros.h"
 #include "RobotCharacterState.h"
 #include "AbilitySystemInterface.h"
+#include "GameplayTagContainer.h"
 #include "RobotPlayerCharacter.generated.h"
 
 class UAttackComponent;
 class AWeaponBase;
 struct FInputActionValue;
-struct FGameplayTagContainer;
+// struct FGameplayTagContainer;
 struct FGameplayTag;
 
 class URobotAbilitySystemComponent;
@@ -24,7 +25,7 @@ class UAnimMontage;
 class UGameplayAbility;
 class URobotPlayerMovement;
 class UAbilitySystemComponent;
-class StartingAttributeSet;
+class UStartingAttributeSet;
 class UMotionWarpingComponent;
 class AJet;
 
@@ -50,10 +51,13 @@ private:
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FollowCamera;
-
+	
 	/** MappingContext */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* DefaultMappingContext;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	float LookInterpSpeed = 10.f;
 
 	/** Jump Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))

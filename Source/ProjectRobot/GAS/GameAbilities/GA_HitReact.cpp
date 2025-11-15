@@ -10,6 +10,7 @@ UGA_HitReact::UGA_HitReact()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
+	// Define Trigger Event.TypeHitReact in child Component
 	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Event.HitReact")));
 	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag("State.HitReact"));
 	
@@ -120,13 +121,16 @@ void UGA_HitReact::ActivateAbility(
 	ActiveTask->OnInterrupted.AddDynamic(this, &UGA_HitReact::EndHitReact);
 	ActiveTask->OnCancelled.AddDynamic(this, &UGA_HitReact::EndHitReact);
 
+	if (TriggerEventData)
+	{
+		// Push back
+		const AActor* Attacker = Cast<AActor>(TriggerEventData->Instigator.Get());
+		FVector Dir = (Char->GetActorLocation() - Attacker->GetActorLocation()).GetSafeNormal2D();
 
-	// Push back
-	const AActor* Attacker = Cast<AActor>(TriggerEventData->Instigator.Get());
-	FVector Dir = (Char->GetActorLocation() - Attacker->GetActorLocation()).GetSafeNormal2D();
-
-	const FVector Knockback = Dir * XYPushStrength + FVector(0, 0, ZKick);
-	Char->LaunchCharacter(Knockback, /*bXYOverride*/true, /*bZOverride*/true);
+		const FVector Knockback = Dir * TriggerEventData->EventMagnitude + FVector(0, 0, ZKick);
+		Char->LaunchCharacter(Knockback, /*bXYOverride*/true, /*bZOverride*/true);	
+	}
+	
 }
 
 void UGA_HitReact::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)

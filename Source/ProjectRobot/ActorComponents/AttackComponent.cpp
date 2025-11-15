@@ -28,9 +28,8 @@ void UAttackComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// ...
+	// Setup Owner
 	currOwner = GetOwner();
-
 }
 
 
@@ -45,19 +44,17 @@ void UAttackComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 		DoCounterTrace();
 	}
 	
-	// for (auto& It : TraceDataSet)
-	// {
-	// 	const FName& Key = It.Key;        
-	// 	const & Value = It.Value;
-	//
-	// 	DoDamageTrace(Key, Value);
-	// }
 }
 
-void UAttackComponent::StartDamageTrace(FName Key, const UAttackTraceData* AttackData)
+/// DamageTrace for different AttackDeliveryTypes
+/// @param Key 
+/// @param AttackData 
+void UAttackComponent::StartDamageTrace(FName Key,  UAttackTraceData* AttackData)
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	HitActors.Empty();
+
+	currData = AttackData;
 	
 	switch (AttackData->DeliveryType)
 	{
@@ -71,13 +68,17 @@ void UAttackComponent::StartDamageTrace(FName Key, const UAttackTraceData* Attac
 	}
 }
 
+/// Start Counter(Parry) Trace Duration
+/// @param TraceData 
 void UAttackComponent::StartCounterTrace(const FTraceWindow& TraceData)
 {
 	ActiveCounterTraceData = TraceData;
 	bCounterTraceActive = true;
 }
 
-void UAttackComponent::EndDamageTrace(const UAttackTraceData* AttackData)
+/// End Damage Trace Duration
+/// @param TraceData 
+void UAttackComponent::EndDamageTrace(UAttackTraceData* AttackData)
 {
 	switch (AttackData->DeliveryType)
 	{
@@ -91,11 +92,15 @@ void UAttackComponent::EndDamageTrace(const UAttackTraceData* AttackData)
 	}
 }
 
+/// End Counter(Parry) Trace Duration
+/// @param TraceData 
 void UAttackComponent::EndCounterTrace()
 {
 	bCounterTraceActive = false;
 }
 
+
+/// Counter(Parry) BoxTrace
 void UAttackComponent::DoCounterTrace()
 {
 	TArray<FOverlapResult> Overlaps;
@@ -194,6 +199,7 @@ void UAttackComponent::DoCounterTrace()
 	}
 }
 
+/// Enable Weapon Hitbox
 void UAttackComponent::EnableWeaponHitbox()
 {
 	if (!boundWeapon || !boundWeapon->GetHitBox()) return;
@@ -208,6 +214,7 @@ void UAttackComponent::EnableWeaponHitbox()
 	}
 }
 
+/// Diable Melee Weapon Hitbox
 void UAttackComponent::DisableWeaponHitbox()
 {
 	if (!boundWeapon || !boundWeapon->GetHitBox()) return;
@@ -218,17 +225,27 @@ void UAttackComponent::DisableWeaponHitbox()
 	hitBox->OnComponentBeginOverlap.RemoveAll(this);
 }
 
+/// Bind melee weapon to access weapon triggerBox
+/// Usually set up in the actual Pawn (OwnedWeaponClass -> AttackComp BindWeapon)
+/// @param Weapon 
 void UAttackComponent::BindWeapon(AWeaponBase* Weapon)
 {
 	boundWeapon = Weapon;
 }
 
+/// Delegate target function for Weapon or Projectile TriggerBox overlap
+/// @param OverlappedComponent 
+/// @param OtherActor 
+/// @param OtherComp 
+/// @param OtherBodyIndex 
+/// @param bFromSweep 
+/// @param SweepResult 
 void UAttackComponent::WeaponHitRegister(UPrimitiveComponent* OverlappedComponent,
-	AActor* OtherActor,
-	UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex,
-	bool bFromSweep,
-	const FHitResult& SweepResult)
+                                         AActor* OtherActor,
+                                         UPrimitiveComponent* OtherComp,
+                                         int32 OtherBodyIndex,
+                                         bool bFromSweep,
+                                         const FHitResult& SweepResult)
 {
 	if (!OtherActor || OtherActor == currOwner) return;
 	if (HitActors.Contains(OtherActor)) return;
@@ -247,16 +264,65 @@ void UAttackComponent::WeaponHitRegister(UPrimitiveComponent* OverlappedComponen
 		Context.AddHitResult(SweepResult, true);
 		Data.ContextHandle = Context;
 
-		Data.EventTag = FGameplayTag::RequestGameplayTag("Event.Attack.DealDmg");
-		if (currOwner->HasAuthority())
-		{
-			UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(currOwner, Data.EventTag, Data);
-		}
-
-		
+		// Data.EventTag = FGameplayTag::RequestGameplayTag("Event.Attack.DealDmg");
+		HandleHitReactionAndHitStop(Data);
+		// if (currOwner->HasAuthority())
+		// {
+		// 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(currOwner, Data.EventTag, Data);
+		// }
 	}
 }
 
+/// Trigger HitReact Event and HitStop Event
+/// @param Payload 
+void UAttackComponent::HandleHitReactionAndHitStop(FGameplayEventData& Payload)
+{
+	const FHitResult* Hit = Payload.ContextHandle.GetHitResult();
+	if (!Hit) return;
+
+	AActor* Target = Hit->GetActor();
+	AActor* Attacker = const_cast<AActor*>(Payload.Instigator.Get()); // AvatarActor usually
+
+	if (!Target || !Attacker) return;
+
+	// Set correct HitReactTag and HitStop eventMagnitude
+	float Magnitude = 0.0f;
+	FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag("Event.HitReact");
+
+	check(currData);
+	float HitStopDuration = currData->HitStopDuration;
+	
+	if (currData)
+	{
+		switch (currData->AttackMagnitude)
+		{
+		case EAttackMagnitude::Heavy:
+			Magnitude = HeavyAtkKnockback;
+			HitReactTag = FGameplayTag::RequestGameplayTag("Event.HeavyHitReact");
+			break;
+		case EAttackMagnitude::Light:
+			Magnitude = LightAtkKnockback;
+			HitReactTag = FGameplayTag::RequestGameplayTag("Event.LightHitReact");
+			break;
+		}
+	}
+
+	// Send HitReact
+	FGameplayEventData ReactPayload = Payload;
+	ReactPayload.EventTag = HitReactTag;
+	ReactPayload.EventMagnitude = Magnitude;
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Target, ReactPayload.EventTag, ReactPayload);
+
+	// Send HitStop to both target and attacker
+	FGameplayTag HitStopTag = FGameplayTag::RequestGameplayTag("Event.HitStop");
+	Payload.EventMagnitude = HitStopDuration;
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Target, HitStopTag, Payload);
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Attacker, HitStopTag, Payload);
+}
+
+/// Send Hit GameplayCue
+/// @param TargetActor 
+/// @param TargetComp 
 void UAttackComponent::SendHitGameplayCue(
     AActor* TargetActor,
     UPrimitiveComponent* TargetComp)
@@ -296,6 +362,11 @@ void UAttackComponent::SendHitGameplayCue(
     ASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag("GameplayCue.LightAttack"), Params);
 }
 
+/// Helper function that compute ImpactPoint and ImpactNormal from OverlappedResult
+/// @param ImpactPoint 
+/// @param ImpactNormal 
+/// @param TargetActor 
+/// @param TargetComp 
 void UAttackComponent::ComputeImpact(FVector& ImpactPoint, FVector& ImpactNormal, AActor* TargetActor, UPrimitiveComponent* TargetComp)
 {
 	UBoxComponent* WeaponHitbox = boundWeapon->GetHitBox();
@@ -324,6 +395,8 @@ void UAttackComponent::ComputeImpact(FVector& ImpactPoint, FVector& ImpactNormal
 	}
 }
 
+/// Simple helper that Ignore Self
+/// @return 
 FCollisionQueryParams UAttackComponent::GetIgnoreCharacterParams() const
 {
 	FCollisionQueryParams Params;
