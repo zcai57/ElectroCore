@@ -149,6 +149,12 @@ void UAttackComponent::DoCounterTrace()
 		// Trigger target's CountReact
 		if (ASC && OwnerASC)
 		{
+			// If already hit, return
+			if (OwnerASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag("Event.HitReact")))
+			{
+				EndCounterTrace();
+				return;
+			}
 			
 			// When player block, trigger reaction to block
 			if (OwnerASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag("State.Block")))
@@ -263,13 +269,14 @@ void UAttackComponent::WeaponHitRegister(UPrimitiveComponent* OverlappedComponen
 		FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
 		Context.AddHitResult(SweepResult, true);
 		Data.ContextHandle = Context;
-
-		// Data.EventTag = FGameplayTag::RequestGameplayTag("Event.Attack.DealDmg");
+		
 		HandleHitReactionAndHitStop(Data);
-		// if (currOwner->HasAuthority())
-		// {
-		// 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(currOwner, Data.EventTag, Data);
-		// }
+
+		HandleHitEffect(Data);
+		
+		// Send event to abilities to apply ability-specific gameplay effects
+		Data.EventTag = FGameplayTag::RequestGameplayTag("Event.Attack.DealDmg");
+		
 	}
 }
 
@@ -286,22 +293,20 @@ void UAttackComponent::HandleHitReactionAndHitStop(FGameplayEventData& Payload)
 	if (!Target || !Attacker) return;
 
 	// Set correct HitReactTag and HitStop eventMagnitude
-	float Magnitude = 0.0f;
 	FGameplayTag HitReactTag = FGameplayTag::RequestGameplayTag("Event.HitReact");
 
 	check(currData);
 	float HitStopDuration = currData->HitStopDuration;
+	float Magnitude = currData->KnockbackMagnitude;
 	
 	if (currData)
 	{
 		switch (currData->AttackMagnitude)
 		{
 		case EAttackMagnitude::Heavy:
-			Magnitude = HeavyAtkKnockback;
 			HitReactTag = FGameplayTag::RequestGameplayTag("Event.HeavyHitReact");
 			break;
 		case EAttackMagnitude::Light:
-			Magnitude = LightAtkKnockback;
 			HitReactTag = FGameplayTag::RequestGameplayTag("Event.LightHitReact");
 			break;
 		}
@@ -320,7 +325,44 @@ void UAttackComponent::HandleHitReactionAndHitStop(FGameplayEventData& Payload)
 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Attacker, HitStopTag, Payload);
 }
 
-/// Send Hit GameplayCue
+/// Handle GameplayEffect after hit like Damage
+/// @param Payload 
+void UAttackComponent::HandleHitEffect(FGameplayEventData& Payload)
+{
+	check(currData);
+	check(currOwner);
+	check(Payload.Target);
+	
+	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(currOwner);
+	UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Payload.Target);
+	
+	UE_LOG(LogTemp, Warning, TEXT("Attacker ASC: %p, Target ASC: %p"), ASC, TargetASC);
+	UE_LOG(LogTemp, Warning, TEXT("Attacker: %s, Target: %s"), *GetNameSafe(currOwner), *GetNameSafe(Payload.Target));
+	if (currData && currData->DamageEffect)
+	{
+		// Damage Target
+		if (currData->DamageEffect)
+		{
+			FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(currData->DamageEffect, 1.0f, TargetASC->MakeEffectContext());
+			Spec.Data->SetSetByCallerMagnitude(currData->EnergyTag, currData->DamageToEnergy);
+			Spec.Data->SetSetByCallerMagnitude(currData->HeatTag, currData->DamageToHeat);
+
+			ASC->ApplyGameplayEffectSpecToTarget(*Spec.Data, TargetASC);
+		}
+
+		// Buff self
+		if (currData->BuffEffect)
+		{
+			FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(currData->BuffEffect, 1.0f, ASC->MakeEffectContext());
+			Spec.Data->SetSetByCallerMagnitude(currData->EnergyTag, currData->BuffToEnergy);
+			Spec.Data->SetSetByCallerMagnitude(currData->HeatTag, currData->BuffToHeat); // No buff to heat
+
+			ASC->ApplyGameplayEffectSpecToTarget(*Spec.Data, ASC);
+		}
+	}
+}
+
+/// Send Hit GameplayCue for sound/vfx
 /// @param TargetActor 
 /// @param TargetComp 
 void UAttackComponent::SendHitGameplayCue(
@@ -358,8 +400,21 @@ void UAttackComponent::SendHitGameplayCue(
         DrawDebugLine(GetWorld(), ImpactPoint, ImpactPoint + ImpactNormal * 30.f, FColor::Cyan, false, 1.f, 0, 1.f);
     }
 
+	FGameplayTag GameplayCue =	FGameplayTag::RequestGameplayTag("GameplayCue.LightAttackHit");
+	if (currData)
+	{
+		switch (currData->AttackMagnitude)
+		{
+		case EAttackMagnitude::Heavy:
+			GameplayCue = FGameplayTag::RequestGameplayTag("GameplayCue.HeavyAttackHit");
+			break;
+		case EAttackMagnitude::Light:
+			GameplayCue = FGameplayTag::RequestGameplayTag("GameplayCue.LightAttackHit");
+			break;
+		}
+	}
     // Execute cue
-    ASC->ExecuteGameplayCue(FGameplayTag::RequestGameplayTag("GameplayCue.LightAttack"), Params);
+    ASC->ExecuteGameplayCue(GameplayCue, Params);
 }
 
 /// Helper function that compute ImpactPoint and ImpactNormal from OverlappedResult

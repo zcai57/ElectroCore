@@ -13,9 +13,10 @@
 class UAttackComponent;
 class AWeaponBase;
 struct FInputActionValue;
+struct FOnAttributeChangeData;
 // struct FGameplayTagContainer;
 struct FGameplayTag;
-
+class UGameplayEffect;
 class URobotAbilitySystemComponent;
 class USpringArmComponent;
 class UCameraComponent;
@@ -213,6 +214,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS", meta = (AllowPrivateAccess = "true"))
 	const UStartingAttributeSet* StartAttributeSet;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Attributes")
+	TSubclassOf<UGameplayEffect> StartingAttributeEffect;
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	/** Called for movement input */
@@ -249,6 +253,12 @@ protected:
 
 	void StopJumping();
 
+	void Death();
+	
+	void BindAttributeDelegate();
+	
+	void OnEnergyChanged(const FOnAttributeChangeData& Data);
+	
 	UFUNCTION() void Input_CrouchStarted();
 
 	void OnSteppingTagChanged(FGameplayTag, int32 NewCount);

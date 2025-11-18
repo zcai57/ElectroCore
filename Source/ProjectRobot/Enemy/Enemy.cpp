@@ -4,6 +4,7 @@
 #include "Enemy.h"
 #include "AbilitySystemComponent.h"
 #include "EnemyControllerBase.h"
+#include "GameplayEffect.h"
 #include "ProjectRobot/Weapon/WeaponBase.h"
 #include "ProjectRobot/AttributeSet/StartingAttributeSet.h"
 #include "ProjectRobot/GAS/RobotAbilitySystemComponent.h"
@@ -81,10 +82,31 @@ void AEnemy::BeginPlay()
 	Super::BeginPlay();
 	
 	EnemyController = Cast<AEnemyControllerBase>(Controller);
+
+	AddCharacterAbilities();
+
+	// Use Gameplay Effect to init stats.
+	// FGameplayEffectContextHandle EffectContext = AbilitySystemComponent->MakeEffectContext();
+	// EffectContext.AddSourceObject(this);
+	//
+	// FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(StartingAttributeEffect, 1.f, EffectContext);
+	// if (SpecHandle.IsValid())
+	// {
+	// 	AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+	// }
+	// AbilitySystemComponent->InitStats(UStartingAttributeSet::StaticClass(), DT_StartingAttributes);
 	// Set up Attribute
 	if (IsValid(AbilitySystemComponent))
 	{
 		StartAttributeSet = AbilitySystemComponent->GetSet<UStartingAttributeSet>();
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Using DT: %s"), *GetNameSafe(DT_StartingAttributes));
+
+	if (StartAttributeSet)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[%s] Heat=%f Energy=%f Status=%f"),
+			*GetName(), StartAttributeSet->GetHeat(), StartAttributeSet->GetEnergy(), StartAttributeSet->GetStatus());
 	}
 
 	// Set up weapon
@@ -94,8 +116,20 @@ void AEnemy::BeginPlay()
 		Weapon->SetOwner(this);
 		Weapon->BindToOwnerAttackComponent(AttackComponent);
 	}
+	// Bind events to attribute changes
+	BindAttributeDelegate();
+}
 
-	AddCharacterAbilities();
+void AEnemy::Death()
+{
+	if (AbilitySystemComponent)
+	{
+		FGameplayTagContainer DeathTags;
+		DeathTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Death")));
+
+		// Make sure it's not blocked by cooldown, cost, or tag requirements
+		AbilitySystemComponent->TryActivateAbilitiesByTag(DeathTags, true); // force = true helps if blocked
+	}
 }
 
 void AEnemy::AddCharacterAbilities()
@@ -110,6 +144,16 @@ void AEnemy::AddCharacterAbilities()
 	// Register Tag events
 	ASC->RegisterGameplayTagEvent(FGameplayTag::RequestGameplayTag("State.Immobile"), EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &AEnemy::OnImmobileTagChanged);
+}
+
+void AEnemy::BindAttributeDelegate()
+{
+	URobotAbilitySystemComponent* ASC = CastChecked<URobotAbilitySystemComponent>(AbilitySystemComponent);
+	const UStartingAttributeSet* AttrSet = AbilitySystemComponent->GetSet<UStartingAttributeSet>();
+	if (!AttrSet) return;
+	
+	FGameplayAttribute EnergyAttr = UStartingAttributeSet::GetEnergyAttribute();
+	ASC->GetGameplayAttributeValueChangeDelegate(EnergyAttr).AddUObject(this, &AEnemy::OnEnergyChanged);
 }
 
 void AEnemy::OnImmobileTagChanged(FGameplayTag, int32 NewCount)
@@ -153,6 +197,11 @@ void AEnemy::DrawDebugDirection()
 			FColor::Red,   // Controller facing = red
 			false, 0.f, 0, 4.f);
 	}
+}
+
+void AEnemy::OnEnergyChanged(const FOnAttributeChangeData& Data)
+{
+	
 }
 
 

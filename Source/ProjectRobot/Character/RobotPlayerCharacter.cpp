@@ -11,6 +11,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/Controller.h"
+#include "GameplayEffect.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
@@ -128,12 +129,21 @@ void ARobotPlayerCharacter::BeginPlay()
 	RobotPlayerMovementComponent = Cast<URobotPlayerMovement>(GetCharacterMovement());
 	// Set up Apparel items
 	SetDefaultApparel();
-	//AbilitySystemComponent->InitAbilityActorInfo(this, this);
+	//AbilitySystemComponent->InitAbilityActorInfoInitAbilityActorInfo(this, this);
 	// Start Abilities
 	AddCharacterAbilities();
 	// Set up Attribute
 
-	AbilitySystemComponent->InitStats(UStartingAttributeSet::StaticClass(), DT_StartingAttributes);
+	// Use Gameplay Effect to init stats.
+	// FGameplayEffectContextHandle EffectContext = AbilitySystemComponent->MakeEffectContext();
+	// EffectContext.AddSourceObject(this);
+	//
+	// FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(StartingAttributeEffect, 1.f, EffectContext);
+	// if (SpecHandle.IsValid())
+	// {
+	// 	AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+	// }
+	// AbilitySystemComponent->InitStats(UStartingAttributeSet::StaticClass(), DT_StartingAttributes);
 	if (IsValid(AbilitySystemComponent))
 	{
 		StartAttributeSet = AbilitySystemComponent->GetSet<UStartingAttributeSet>();
@@ -224,6 +234,7 @@ void ARobotPlayerCharacter::Look(const FInputActionValue& Value)
 
 void ARobotPlayerCharacter::Equip(const FInputActionValue& Value)
 {
+	
 }
 
 /// Determine what atk ability to trigger
@@ -389,6 +400,26 @@ void ARobotPlayerCharacter::StopJumping()
 		RobotPlayerMovementComponent->BoostReleased();
 	}
 	ACharacter::StopJumping();	
+}
+
+void ARobotPlayerCharacter::Death()
+{
+	
+}
+
+void ARobotPlayerCharacter::BindAttributeDelegate()
+{
+	URobotAbilitySystemComponent* ASC = CastChecked<URobotAbilitySystemComponent>(AbilitySystemComponent);
+	const UStartingAttributeSet* AttrSet = AbilitySystemComponent->GetSet<UStartingAttributeSet>();
+	if (!AttrSet) return;
+	
+	FGameplayAttribute EnergyAttr = UStartingAttributeSet::GetEnergyAttribute();
+	ASC->GetGameplayAttributeValueChangeDelegate(EnergyAttr).AddUObject(this, &ARobotPlayerCharacter::OnEnergyChanged);
+}
+
+void ARobotPlayerCharacter::OnEnergyChanged(const FOnAttributeChangeData& Data)
+{
+	
 }
 
 

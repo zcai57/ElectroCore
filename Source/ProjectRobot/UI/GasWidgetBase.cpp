@@ -3,6 +3,8 @@
 
 #include "GasWidgetBase.h"
 
+/// Stores ASC refrence to regiester Attribute Changes
+/// @param InASC 
 void UGasWidgetBase::InitFromASC(UAbilitySystemComponent* InASC)
 {
     if (ASC == InASC) return;

@@ -48,12 +48,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Debug")
 	bool bEnableDebug = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Attack")
-	float LightAtkKnockback = 500.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tuning|Attack")
-	float HeavyAtkKnockback = 1000.f;
-
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
@@ -74,6 +68,8 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void HandleHitReactionAndHitStop(FGameplayEventData& Payload);
+	void HandleHitEffect(FGameplayEventData& Payload);
+	
 
 	void SendHitGameplayCue( AActor* TargetActor,
 	UPrimitiveComponent* TargetComp);

@@ -8,9 +8,11 @@
 #include "ProjectRobot/Interface/IEnemyAI.h"
 #include "Enemy.generated.h"
 
+
 class UAttackComponent;
 struct FGameplayTag;
-
+struct FOnAttributeChangeData;
+class UGameplayEffect;
 class AEnemyControllerBase;
 class UMotionWarpingComponent;
 class URobotAbilitySystemComponent;
@@ -58,21 +60,32 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "GAS|Abilities")
 	TArray<TSubclassOf<UGameplayAbility>> StartupAbilities;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GAS|Attributes")
+	TSubclassOf<UGameplayEffect> StartingAttributeEffect;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Attributes")
+	TObjectPtr<UDataTable> DT_StartingAttributes;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS", meta = (AllowPrivateAccess = "true"))
 	const class UStartingAttributeSet* StartAttributeSet;
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	void Death();
+
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	virtual void UpdateWalkSpeed(float NewSpeed);
 
 	void AddCharacterAbilities();
+
+	void BindAttributeDelegate();
 	
 	void OnImmobileTagChanged(FGameplayTag, int32 NewCount);
 
 	void DrawDebugDirection();
 	
+	void OnEnergyChanged(const FOnAttributeChangeData& Data);
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

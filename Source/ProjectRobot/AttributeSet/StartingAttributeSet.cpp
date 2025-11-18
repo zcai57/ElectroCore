@@ -6,6 +6,6 @@
 UStartingAttributeSet::UStartingAttributeSet()
 {
 	InitHeat(0.f);
-	InitEnergy(30.f);
+	InitEnergy(0.f);
 	InitStatus(0.f);
 }
