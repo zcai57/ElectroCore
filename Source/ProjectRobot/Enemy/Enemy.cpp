@@ -2,8 +2,11 @@
 
 
 #include "Enemy.h"
+
+#include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "EnemyControllerBase.h"
+#include "Abilities/GameplayAbilityTypes.h"
 #include "GameplayEffect.h"
 #include "ProjectRobot/Weapon/WeaponBase.h"
 #include "ProjectRobot/AttributeSet/StartingAttributeSet.h"
@@ -11,9 +14,10 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "MotionWarpingComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Materials/MaterialInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "ProjectRobot/ActorComponents/AttackComponent.h"
-
+	
 // Sets default values
 AEnemy::AEnemy()
 {
@@ -120,17 +124,6 @@ void AEnemy::BeginPlay()
 	BindAttributeDelegate();
 }
 
-void AEnemy::Death()
-{
-	if (AbilitySystemComponent)
-	{
-		FGameplayTagContainer DeathTags;
-		DeathTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Death")));
-
-		// Make sure it's not blocked by cooldown, cost, or tag requirements
-		AbilitySystemComponent->TryActivateAbilitiesByTag(DeathTags, true); // force = true helps if blocked
-	}
-}
 
 void AEnemy::AddCharacterAbilities()
 {
@@ -144,6 +137,10 @@ void AEnemy::AddCharacterAbilities()
 	// Register Tag events
 	ASC->RegisterGameplayTagEvent(FGameplayTag::RequestGameplayTag("State.Immobile"), EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &AEnemy::OnImmobileTagChanged);
+
+	ASC->GenericGameplayEventCallbacks.FindOrAdd(
+		   FGameplayTag::RequestGameplayTag("Event.DamageTaken")
+	   ).AddUObject(this, &AEnemy::OnDamageTaken);
 }
 
 void AEnemy::BindAttributeDelegate()
@@ -152,8 +149,8 @@ void AEnemy::BindAttributeDelegate()
 	const UStartingAttributeSet* AttrSet = AbilitySystemComponent->GetSet<UStartingAttributeSet>();
 	if (!AttrSet) return;
 	
-	FGameplayAttribute EnergyAttr = UStartingAttributeSet::GetEnergyAttribute();
-	ASC->GetGameplayAttributeValueChangeDelegate(EnergyAttr).AddUObject(this, &AEnemy::OnEnergyChanged);
+	// FGameplayAttribute EnergyAttr = UStartingAttributeSet::GetEnergyAttribute();
+	// ASC->GetGameplayAttributeValueChangeDelegate(EnergyAttr).AddUObject(this, &AEnemy::OnEnergyChanged);
 }
 
 void AEnemy::OnImmobileTagChanged(FGameplayTag, int32 NewCount)
@@ -199,11 +196,138 @@ void AEnemy::DrawDebugDirection()
 	}
 }
 
-void AEnemy::OnEnergyChanged(const FOnAttributeChangeData& Data)
+void AEnemy::TriggerExecution()
 {
+	check(LastHitInstigator);
 	
+	// Create payload for execution
+	FGameplayEventData EventData;
+	EventData.Instigator = LastHitInstigator;   // Who will perform the execution
+	EventData.Target = this;
+
+	FGameplayTag ExecTag = FGameplayTag::RequestGameplayTag("Event.Execution");
+
+	// Send event to attacker
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+		const_cast<AActor*>(LastHitInstigator), // convert weak ptr → raw ptr
+		ExecTag,
+		EventData
+	);
+	// Send event to self
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+		this, ExecTag, EventData);
+
+	bIsBeingExecuted = true;
 }
 
+void AEnemy::TriggerNormalDeath()
+{
+	if (bIsBeingExecuted) return;
+
+	if (AbilitySystemComponent)
+	{
+		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+			this,
+			FGameplayTag::RequestGameplayTag("Event.Death"),
+			FGameplayEventData()
+		);
+	}
+}
+
+
+void AEnemy::OnDamageTaken(const FGameplayEventData* Payload)
+{
+	LastHitInstigator = Payload->Instigator.Get();
+	LastHitWasMelee = Payload->TargetTags.HasTag(FGameplayTag::RequestGameplayTag("Event.MeleeAttack"));
+}
+
+
+void AEnemy::StartDissolve()
+{
+	USkeletalMeshComponent* CurMesh = GetMesh();
+	TotalDissolveMat.Empty();
+
+	int32 MatCount = CurMesh->GetNumMaterials();
+
+	for (int32 i = 0; i < MatCount; ++i)
+	{
+		// Replace
+		CurMesh->SetMaterial(i, DissolveMat);
+
+		// Create dynamic version
+		UMaterialInstanceDynamic* Dyn = CurMesh->CreateDynamicMaterialInstance(i);
+		if (Dyn)
+		{
+			TotalDissolveMat.Add(Dyn);
+		}
+	}
+
+	// Start dissolve
+	bDissolving = true;
+	DissolveAmount = -1.f;
+}
+
+void AEnemy::UpdateDissolve(float DeltaTime)
+{
+	const float DissolveSpeed = 2.f / DespawnTimeAfterDeath;
+	if (bDissolving && DissolveMat)
+	{
+		DissolveAmount = FMath::Clamp(DissolveAmount + DeltaTime * DissolveSpeed, -1.f, 1.f);
+
+		for (auto* Mat : TotalDissolveMat)
+		{
+			Mat->SetScalarParameterValue("Dissolve", DissolveAmount);
+		}
+
+		if (DissolveAmount >= 1.f)
+		{
+			bDissolving = false;
+		}
+	}
+}
+
+void AEnemy::OnDeathStart()
+{
+	if (bIsDying) return;
+	bIsDying = true;
+
+	// Death Tag
+	if (AbilitySystemComponent)
+	{
+		FGameplayTagContainer DeathTags;
+		DeathTags.AddTag(FGameplayTag::RequestGameplayTag("State.Death"));
+	
+		AbilitySystemComponent->AddLooseGameplayTags(DeathTags);
+	}
+
+	EnemyController->OnDeath();
+	
+	if (LastHitWasMelee && LastHitInstigator)
+	{
+		TriggerExecution();
+		return;
+	}
+	
+	TriggerNormalDeath();
+}
+
+void AEnemy::OnDeathEnd()
+{
+	// Set lifetime and dissolve death effect
+	SetLifeSpan(DespawnTimeAfterDeath);
+	StartDissolve();
+	
+
+	USkeletalMeshComponent* MeshComp = GetMesh();
+
+	// Ragdoll
+	MeshComp->SetSimulatePhysics(true);
+	MeshComp->SetCollisionProfileName(FName("Ragdoll"));
+	MeshComp->WakeAllRigidBodies();
+
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	MeshComp->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+}
 
 void AEnemy::UpdateWalkSpeed(float NewSpeed)
 {
@@ -267,6 +391,8 @@ void AEnemy::Tick(float DeltaTime)
 	{
 		DrawDebugDirection();
 	}
+	// Trigger on DeathEnd
+	UpdateDissolve(DeltaTime);
 }
 
 // Called to bind functionality to input

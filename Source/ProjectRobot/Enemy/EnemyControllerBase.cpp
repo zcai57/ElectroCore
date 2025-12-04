@@ -2,8 +2,8 @@
 
 
 #include "EnemyControllerBase.h"
-
 #include "Enemy.h"
+#include "Components/StateTreeAIComponent.h"
 #include "Navigation/PathFollowingComponent.h"
 
 void AEnemyControllerBase::StartMove(FVector TargetLocation, AActor* MyTarget)
@@ -63,6 +63,12 @@ void AEnemyControllerBase::EnterIdleMode()
 void AEnemyControllerBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (StateTreeComp)
+	{
+		// Start the StateTree logic when the controller activates
+		StateTreeComp->StartLogic();
+	}
 }
 
 
@@ -106,6 +112,18 @@ bool AEnemyControllerBase::IsStrafing()
 		return EnemyPawn->IsStrafing();
 	}
 	return false;
+}
+
+/// Send Death StateTree Event
+void AEnemyControllerBase::OnDeath()
+{
+	StateTreeComp->SendStateTreeEvent(FGameplayTag::RequestGameplayTag("State.Death"));
+}
+
+AEnemyControllerBase::AEnemyControllerBase(const FObjectInitializer& ObjectInitializer): Super(ObjectInitializer)
+{
+	StateTreeComp = CreateDefaultSubobject<UStateTreeAIComponent>(TEXT("StateTreeComponent"));
+	StateTreeComp->SetAutoActivate(true);
 }
 
 void AEnemyControllerBase::Tick(float DeltaTime)

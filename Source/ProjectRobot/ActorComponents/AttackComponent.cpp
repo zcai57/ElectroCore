@@ -55,6 +55,12 @@ void UAttackComponent::StartDamageTrace(FName Key,  UAttackTraceData* AttackData
 	HitActors.Empty();
 
 	currData = AttackData;
+
+	check(AttackData);
+	if (!AttackData)
+	{
+		UE_LOG(LogTemp,Warning, TEXT("AttackData not set!"));
+	}
 	
 	switch (AttackData->DeliveryType)
 	{
@@ -332,14 +338,34 @@ void UAttackComponent::HandleHitEffect(FGameplayEventData& Payload)
 	check(currData);
 	check(currOwner);
 	check(Payload.Target);
-	
+
 	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(currOwner);
 	UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Payload.Target);
+
+	// Tell Target they are being hit
+	FGameplayEventData DamageEvent;
+	DamageEvent.Target = Payload.Target;
+	DamageEvent.Instigator = currOwner;
+	DamageEvent.ContextHandle = Payload.ContextHandle;
+	DamageEvent.EventTag = FGameplayTag::RequestGameplayTag("Event.DamageTaken");
+	
+	FGameplayTag OriginalAttackType = FGameplayTag::RequestGameplayTag("Event.MeleeAttack");
+	DamageEvent.TargetTags.AddTag(OriginalAttackType);
+
+	AActor* TargetActor = const_cast<AActor*>(Payload.Target.Get());
+	if (!TargetActor) return;
+    
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+		TargetActor,
+		DamageEvent.EventTag,
+		DamageEvent
+	);
 	
 	UE_LOG(LogTemp, Warning, TEXT("Attacker ASC: %p, Target ASC: %p"), ASC, TargetASC);
 	UE_LOG(LogTemp, Warning, TEXT("Attacker: %s, Target: %s"), *GetNameSafe(currOwner), *GetNameSafe(Payload.Target));
 	if (currData && currData->DamageEffect)
 	{
+		
 		// Damage Target
 		if (currData->DamageEffect)
 		{

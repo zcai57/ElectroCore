@@ -6,6 +6,9 @@
 #include "AIController.h"
 #include "EnemyControllerBase.generated.h"
 
+class AEnemy;
+class UStateTreeAIComponent;
+
 UENUM(BlueprintType)
 enum class EAIState : uint8
 {
@@ -22,6 +25,8 @@ class PROJECTROBOT_API AEnemyControllerBase : public AAIController
 {
 	GENERATED_BODY()
 public:
+	AEnemyControllerBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	
 	virtual void Tick(float DeltaTime) override;
 
 	void OnPossess(APawn* InPawn) override;
@@ -43,6 +48,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat");
 	AActor* CombatTarget;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="AI")
+	UStateTreeAIComponent* StateTreeComp;
+
 	void StopMovement();
 
 	UFUNCTION(BlueprintCallable)
@@ -50,6 +58,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	bool IsStrafing();
+
+	UFUNCTION(BlueprintCallable)
+	void OnDeath();
 	
 protected:
 	virtual void BeginPlay() override;
@@ -57,7 +68,6 @@ protected:
 	UFUNCTION()
 	void OnMoveCompleted(FAIRequestID RequestID, EPathFollowingResult::Type Result);
 	
-private:
 private:
 	AEnemy* EnemyPawn;
 	EAIState AIState = EAIState::EAS_Unoccupied;

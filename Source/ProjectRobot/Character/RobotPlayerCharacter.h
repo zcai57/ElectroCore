@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
 #include "RobotCharacterState.h"
+#include "ContextualAnimSceneActorComponent.h"
 #include "AbilitySystemInterface.h"
 #include "GameplayTagContainer.h"
 #include "RobotPlayerCharacter.generated.h"
@@ -45,6 +46,9 @@ private:
 	/** Camera boom positioning the camera behind the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	USpringArmComponent* CameraBoom;
+	/** ContextualAnimSceneActor */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Contextual Anim", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UContextualAnimSceneActorComponent> ContextualAnimComp;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	float CameraArmLength = 250.f;
@@ -206,6 +210,8 @@ public:
 
 	void SetInvulnerability(bool Invulnerable);
 
+	void CameraLockOn();
+
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
@@ -233,6 +239,7 @@ protected:
 
 	virtual void Crouch(bool bClientSimulation = false) override;
 
+	UFUNCTION(BlueprintCallable)
 	void Focus();
 
 	void Slide();

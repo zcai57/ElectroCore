@@ -10,6 +10,7 @@
 
 
 class UAttackComponent;
+struct FGameplayEventData;
 struct FGameplayTag;
 struct FOnAttributeChangeData;
 class UGameplayEffect;
@@ -37,6 +38,14 @@ class PROJECTROBOT_API AEnemy : public ACharacter, public IIEnemyAI, public IAbi
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Apparel", meta = (AllowPrivateAccess = "true"))
 	UChildActorComponent* WeaponChild;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tuning|LifeTime", meta = (AllowPrivateAccess = "true"))
+	float DespawnTimeAfterDeath = 3.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tuning|LifeTime", meta = (AllowPrivateAccess = "true"))
+	UMaterialInstance* DissolveMat;
+
+	UPROPERTY()
+	TArray<UMaterialInstanceDynamic*> TotalDissolveMat;
 public:
 	// Sets default values for this character's properties
 	AEnemy();
@@ -45,6 +54,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	virtual void ClampMotionWarpDist(float dist);
+
+	UFUNCTION(BlueprintCallable, Category = "LifeTime")
+	void OnDeathStart();
+	
+	UFUNCTION(BlueprintCallable, Category = "LifeTime")
+	virtual void OnDeathEnd();
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
@@ -72,8 +87,6 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	void Death();
-
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	virtual void UpdateWalkSpeed(float NewSpeed);
 
@@ -84,8 +97,18 @@ protected:
 	void OnImmobileTagChanged(FGameplayTag, int32 NewCount);
 
 	void DrawDebugDirection();
+
+	void TriggerExecution();
+
+	void TriggerNormalDeath();
 	
-	void OnEnergyChanged(const FOnAttributeChangeData& Data);
+	// void OnEnergyChanged(const FOnAttributeChangeData& Data);
+
+	void OnDamageTaken(const FGameplayEventData* Payload);
+
+	void StartDissolve();
+
+	void UpdateDissolve(float DeltaTime);
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -99,8 +122,16 @@ public:
 	bool IsImmobile();
 
 	bool IsStrafing();
+
+protected:
+	const AActor* LastHitInstigator;
+	bool LastHitWasMelee;
+	bool bIsDying = false;
+	bool bIsBeingExecuted = false;
 private:
 	AEnemyControllerBase* EnemyController;
+	float DissolveAmount = -1.f;
 	bool bImmobile = false;
 	bool bIsStrafing = false;
+	bool bDissolving = false;
 };

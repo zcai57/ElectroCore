@@ -63,6 +63,7 @@ ARobotPlayerCharacter::ARobotPlayerCharacter(const FObjectInitializer& ObjectIni
 	CameraBoom->bInheritPitch = true;
 	CameraBoom->bInheritYaw = true;
 	CameraBoom->bInheritRoll = true;
+	CameraBoom->CameraLagSpeed = FocusInterpSpeed;
 
 	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
@@ -101,10 +102,13 @@ ARobotPlayerCharacter::ARobotPlayerCharacter(const FObjectInitializer& ObjectIni
 
 	// Attack Component
 	AttackComponent = CreateDefaultSubobject<UAttackComponent>(TEXT("AttackComponent"));
+
+	// Contextual Anim Component
+	ContextualAnimComp = CreateDefaultSubobject<UContextualAnimSceneActorComponent>(TEXT("ContextualAnimComp"));
 }
 
 /// <summary>
-/// 进入FocusTarget模式R
+/// 进入FocusTarget模式
 /// Call from Focus GameplayAbility
 /// </summary>
 /// <param name="FocusedTarget"></param>
@@ -117,6 +121,10 @@ void ARobotPlayerCharacter::SetFocusTarget(AActor* FocusedTarget)
 
 	bIsFocused = true;
 	FocusedActor = FocusedTarget;
+
+	// When set Focus succeeded, change camera mode
+	CameraBoom->bEnableCameraRotationLag = true;
+	CameraBoom->bUsePawnControlRotation = false;
 }
 
 
@@ -300,7 +308,7 @@ void ARobotPlayerCharacter::Focus()
 	{
 		if (!AbilitySystemComponent || !FocusTag.IsValid()) return;
 		AbilitySystemComponent->TryActivateAbilitiesByTag(FocusTag);
-
+		
 	}
 	else {
 		if (!AbilitySystemComponent || !FocusTag.IsValid()) return;
@@ -311,6 +319,9 @@ void ARobotPlayerCharacter::Focus()
 		// Reset状态
 		FocusedActor = nullptr;
 		bIsFocused = false;
+
+		CameraBoom->bUsePawnControlRotation = true;
+		CameraBoom->bEnableCameraRotationLag = false;
 	}
 }
 
@@ -468,10 +479,13 @@ void ARobotPlayerCharacter::Tick(float DeltaTime)
 			PlayerController->SetControlRotation(FMath::RInterpTo(CharacterRot, TargetRot, DeltaTime, FocusInterpSpeed));
 		}
 		CameraBoom->SocketOffset = FMath::VInterpTo(CameraBoom->SocketOffset, CameraSocketOffset, DeltaTime, OffsetInterpSpeed);
+
+		CameraLockOn();
 	}
 	else {
 		CameraBoom->SocketOffset = FMath::VInterpTo(CameraBoom->SocketOffset, FVector::ZeroVector, DeltaTime, OffsetInterpSpeed);
 	}
+	
 
 	// Notify Camera Movement
 	NotifyCameraMove(DeltaTime);
@@ -775,4 +789,13 @@ void ARobotPlayerCharacter::SetInvulnerability(bool Invulnerable)
 	{
 		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	}
+}
+
+void ARobotPlayerCharacter::CameraLockOn()
+{
+	FVector ToTarget = FocusedActor->GetActorLocation() - FollowCamera->GetComponentLocation();
+	FRotator ToTargetRotator = ToTarget.Rotation();
+	FRotator DesiredRot = FRotator(GetControlRotation().Pitch, ToTargetRotator.Yaw, 0.0f);
+
+	CameraBoom->SetWorldRotation(DesiredRot);
 }

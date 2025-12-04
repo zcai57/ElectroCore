@@ -18,9 +18,9 @@ void UResourceBarWidget::UpdateResource(float newValue)
 void UResourceBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
-	if (UnderBar->Percent > TargetValue)
+	if (CurrentInterpValue > TargetValue)
 	{
-		float newValue = FMath::FInterpTo(CurrentInterpValue, TargetValue, InDeltaTime, InterpSpeed);;
+		float newValue = FMath::FInterpConstantTo(CurrentInterpValue, TargetValue, InDeltaTime, InterpSpeed);;
 		UnderBar->SetPercent(newValue);
 		CurrentInterpValue = newValue;
 	}

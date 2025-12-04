@@ -22,6 +22,8 @@ class PROJECTROBOT_API UStartingAttributeSet : public UAttributeSet
 public:
 	UStartingAttributeSet();
 
+	virtual void PostGameplayEffectExecute(const struct FGameplayEffectModCallbackData &Data) override;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Attributes")
 	FGameplayAttributeData Heat;
 	ATTRIBUTE_ACCESSORS(UStartingAttributeSet, Heat);
@@ -33,4 +35,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Attributes")
 	FGameplayAttributeData Status;
 	ATTRIBUTE_ACCESSORS(UStartingAttributeSet, Status);
+private:
+	float PrevEnergy = 0.f;
 };

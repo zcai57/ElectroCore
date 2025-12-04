@@ -10,7 +10,7 @@ public class ProjectRobot : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new string[] { 
 			"Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", 
-			"UMG", "GameplayAbilities", "GameplayTags", "GameplayTasks", "MotionWarping", "StateTreeModule", "AIModule" });
+			"UMG", "GameplayAbilities", "GameplayTags", "GameplayTasks", "MotionWarping", "GameplayStateTreeModule", "AIModule", "ContextualAnimation" });
 		//PrivateDependencyModuleNames.AddRange(new string[] { "GameplayAbilities", "GameplayTags", "GameplayTasks" });
 	}
 }
