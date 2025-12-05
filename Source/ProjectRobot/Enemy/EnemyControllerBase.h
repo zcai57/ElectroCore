@@ -8,6 +8,7 @@
 
 class AEnemy;
 class UStateTreeAIComponent;
+class UAttackDefinitionData;
 
 UENUM(BlueprintType)
 enum class EAIState : uint8
@@ -48,6 +49,19 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat");
 	AActor* CombatTarget;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat");
+	const UAttackDefinitionData* CurrAttackData;
+
+	/** Used for State Tree AtkChooser Cooldown **/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat");
+	float CurrAttackCd = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat");
+	float AttackCooldownDuration = 2.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat");
+	bool CanAttack = true;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="AI")
 	UStateTreeAIComponent* StateTreeComp;
 
@@ -67,8 +81,19 @@ protected:
 	
 	UFUNCTION()
 	void OnMoveCompleted(FAIRequestID RequestID, EPathFollowingResult::Type Result);
-	
+
+	UFUNCTION(BlueprintCallable)
+	void ResetAttackCd();
+
+	UFUNCTION(BlueprintCallable)
+	void SetCurrAttackData(const UAttackDefinitionData* Data);
+
+	UFUNCTION(BlueprintCallable)
+	void SetCanAttack(bool on);
+
+	void HandleAttackCooldownFinished();
 private:
 	AEnemy* EnemyPawn;
+	FTimerHandle AttackCooldownTimer;
 	EAIState AIState = EAIState::EAS_Unoccupied;
 };

@@ -6,6 +6,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
+#include "ProjectRobot/Data/AttackDefinitionData.h"
 #include "ProjectRobot/Enemy/Enemy.h"
 #include "ProjectRobot/Enemy/EnemyControllerBase.h"
 
@@ -24,7 +25,7 @@ UGA_LightAtkCombo::UGA_LightAtkCombo()
 
 	// Set up Trigger
 	FAbilityTriggerData Trigger;
-	Trigger.TriggerTag = FGameplayTag::RequestGameplayTag(FName("Event.AI.LightComboAtk"));
+	Trigger.TriggerTag = FGameplayTag::RequestGameplayTag(FName("Event.MeleeAttack"));
 	Trigger.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
 	AbilityTriggers.Add(Trigger);
 }
@@ -36,7 +37,21 @@ void UGA_LightAtkCombo::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 
 	// if triggered from event
 	if (TriggerEventData)
+	{
 		MaxCombo = (int32)TriggerEventData->EventMagnitude;
+		if (TriggerEventData->OptionalObject)
+		{
+			if (const UAttackDefinitionData* Def = Cast<UAttackDefinitionData>(TriggerEventData->OptionalObject))
+			{
+				AttackData = Def;
+			} else
+			{
+				UE_LOG(LogTemp, Error, TEXT("OptionalObject is not UAttackDefinitionData!"));
+			}
+		} 
+	}
+		
+	
 
 	// Reset state for safety
 	bTakingInput = false;
@@ -143,66 +158,45 @@ void UGA_LightAtkCombo::OnMontageEnd(FGameplayEventData Payload)
 
 void UGA_LightAtkCombo::AdvanceCombo()
 {
-	if (ComboPhase >= MaxCombo) return;
-	bComboAdvancing = true;
-	
-	if (CurrentActorInfo && CurrentActorInfo->AvatarActor.IsValid())
+	if (!AttackData)
 	{
-		AEnemy* EnemyActor = Cast<AEnemy>(CurrentActorInfo->AvatarActor.Get());
-		UAnimMontage* MontageToPlay = ComboMontage1;
-		if (ACharacter* Char = Cast<ACharacter>(CurrentActorInfo->AvatarActor))
-		{
-			UAnimInstance* Anim = Char->GetMesh()->GetAnimInstance();
-			check(Anim);
-			if (ComboPhase == 0)
-			{
-				/*Char->PlayAnimMontage(ComboMontage1, 1.f);*/
-				MontageToPlay = ComboMontage1;
-				if (EnemyActor)
-				{
-					EnemyActor->ClampMotionWarpDist(MotionWarpDist1);
-				}
-			}
-			else if (ComboPhase == 1)
-			{
-				/*Char->PlayAnimMontage(ComboMontage2, 1.f);*/
-				MontageToPlay = ComboMontage2;
-				if (EnemyActor)
-				{
-					EnemyActor->ClampMotionWarpDist(MotionWarpDist2);
-				}
-			}
-			else if (ComboPhase == 2)
-			{
-				/*Char->PlayAnimMontage(ComboMontage3, 1.f);*/
-				MontageToPlay = ComboMontage3;
-				if (EnemyActor)
-				{
-					EnemyActor->ClampMotionWarpDist(MotionWarpDist3);
-				}
-			}
-			else if (ComboPhase == 3)
-			{
-				/*Char->PlayAnimMontage(ComboMontage4, 1.f);*/
-				MontageToPlay = ComboMontage4;
-				if (EnemyActor)
-				{
-					EnemyActor->ClampMotionWarpDist(MotionWarpDist4);
-				}
-			}
-			
-			// if(AEnemyControllerBase* controller = Cast<AEnemyControllerBase>(EnemyActor->GetController()))
-			// {
-			// 	controller->FaceCombatTarget();
-			// }
-			
-			ComboPhase += 1;
-		}
-		// Active MontageTask
-		ActiveTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-			this, NAME_None, MontageToPlay, 1.0f, NAME_None, /*bStopWhenAbilityEnds*/ true, 1.0f);
-		ActiveTask->ReadyForActivation();
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+		return;
 	}
+
+	if (ComboPhase >= AttackData->AttackDefinition.Num())
+	{
+		// No more steps, finish
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+		return;
+	}
+
+	bComboAdvancing = true;
+
+	// Get the attack step safely
+	const FAttackDefinition& Step = AttackData->AttackDefinition[ComboPhase];
+
+	if (!Step.Montage)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Combo step %d has no montage!"), ComboPhase);
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+		bComboAdvancing = false;
+		return;
+	}
+
+	AEnemy* EnemyActor = Cast<AEnemy>(CurrentActorInfo->AvatarActor.Get());
+
+	if (EnemyActor)
+	{
+		EnemyActor->ClampMotionWarpDist(Step.MotionWarpDistance);
+	}
+
+	// Active MontageTask
+	ActiveTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+		this, NAME_None, Step.Montage, 1.0f, NAME_None, /*bStopWhenAbilityEnds*/ true, 1.0f);
+	ActiveTask->ReadyForActivation();
+	
+	ComboPhase += 1;
 	bComboAdvancing = false;
 }
 

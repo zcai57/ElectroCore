@@ -10,6 +10,7 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "GA_LightAtkCombo.generated.h"
 
+class UAttackDefinitionData;
 class UAnimMontage;
 /**
  * 
@@ -19,29 +20,32 @@ class PROJECTROBOT_API UGA_LightAtkCombo : public UGA_MontageAbility
 {
 	GENERATED_BODY()
 protected:
-	UPROPERTY(EditDefaultsOnly, Category = "Combo")
-	UAnimMontage* ComboMontage1 = nullptr;
+	// UPROPERTY(EditDefaultsOnly, Category = "Combo")
+	// UAnimMontage* ComboMontage1 = nullptr;
+	//
+	// UPROPERTY(EditDefaultsOnly, Category = "Combo")
+	// UAnimMontage* ComboMontage2 = nullptr;
+	//
+	// UPROPERTY(EditDefaultsOnly, Category = "Combo")
+	// UAnimMontage* ComboMontage3 = nullptr;
+	//
+	// UPROPERTY(EditDefaultsOnly, Category = "Combo")
+	// UAnimMontage* ComboMontage4 = nullptr;
+	//
+	// UPROPERTY(EditDefaultsOnly, Category = "Combo")
+	// float MotionWarpDist1 = 200.f;
+	//
+	// UPROPERTY(EditDefaultsOnly, Category = "Combo")
+	// float MotionWarpDist2 = 200.f;
+	//
+	// UPROPERTY(EditDefaultsOnly, Category = "Combo")
+	// float MotionWarpDist3 = 250.f;
+	//
+	// UPROPERTY(EditDefaultsOnly, Category = "Combo")
+	// float MotionWarpDist4 = 300.f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Combo")
-	UAnimMontage* ComboMontage2 = nullptr;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Combo")
-	UAnimMontage* ComboMontage3 = nullptr;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Combo")
-	UAnimMontage* ComboMontage4 = nullptr;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Combo")
-	float MotionWarpDist1 = 200.f;
-	
-	UPROPERTY(EditDefaultsOnly, Category = "Combo")
-	float MotionWarpDist2 = 200.f;
-	
-	UPROPERTY(EditDefaultsOnly, Category = "Combo")
-	float MotionWarpDist3 = 250.f;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Combo")
-	float MotionWarpDist4 = 300.f;
+	const UAttackDefinitionData* AttackData;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Combo")
 	int32 MaxCombo = 4;

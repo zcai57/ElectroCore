@@ -4,7 +4,9 @@
 #include "EnemyControllerBase.h"
 #include "Enemy.h"
 #include "Components/StateTreeAIComponent.h"
+#include "Engine/TimerHandle.h"
 #include "Navigation/PathFollowingComponent.h"
+#include "ProjectRobot/Data/AttackDefinitionData.h"
 
 void AEnemyControllerBase::StartMove(FVector TargetLocation, AActor* MyTarget)
 {
@@ -13,6 +15,7 @@ void AEnemyControllerBase::StartMove(FVector TargetLocation, AActor* MyTarget)
 		OnMoveRequestFinished.Broadcast(false);
 		return;
 	}
+	
 
 	EPathFollowingRequestResult::Type Result;
 	if (MyTarget == nullptr)
@@ -88,6 +91,39 @@ void AEnemyControllerBase::OnMoveCompleted(FAIRequestID RequestID, EPathFollowin
 	OnMoveRequestFinished.Broadcast(Result == EPathFollowingResult::Type::Success);
 }
 
+void AEnemyControllerBase::ResetAttackCd()
+{
+	CurrAttackCd = 0.f;
+	// Set CanAttack to false until cooldown finishes
+	SetCanAttack(false);
+
+	// Clear existing timer (safety)
+	GetWorldTimerManager().ClearTimer(AttackCooldownTimer);
+
+	// Start new cooldown timer
+	GetWorldTimerManager().SetTimer(
+		AttackCooldownTimer,
+		this,
+		&AEnemyControllerBase::HandleAttackCooldownFinished,
+		AttackCooldownDuration,
+		false
+	);
+}
+
+void AEnemyControllerBase::HandleAttackCooldownFinished()
+{
+	SetCanAttack(true);
+}
+
+void AEnemyControllerBase::SetCurrAttackData(const UAttackDefinitionData* Data)
+{
+	CurrAttackData = Data;
+}
+
+void AEnemyControllerBase::SetCanAttack(bool on)
+{
+	CanAttack = on;
+}
 
 void AEnemyControllerBase::StopMovement()
 {

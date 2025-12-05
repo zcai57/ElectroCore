@@ -20,6 +20,7 @@
 #include "../Vehicle/Jet.h"
 #include "Kismet/GameplayStatics.h"
 #include "ProjectRobot/ActorComponents/AttackComponent.h"
+#include "ProjectRobot/Data/AttackDefinitionData.h"
 #include "ProjectRobot/Weapon/WeaponBase.h"
 
 #define DEBUG_MOVEMENT 0
@@ -269,7 +270,13 @@ void ARobotPlayerCharacter::LightAttack(const FInputActionValue& Value)
 		}
 	}
 	else {
-		AbilitySystemComponent->TryActivateAbilitiesByTag(LightComboTag);
+		// AbilitySystemComponent->TryActivateAbilitiesByTag(LightComboTag);
+		FGameplayEventData EventData;
+		EventData.EventTag = FGameplayTag::RequestGameplayTag("Event.MeleeAttack");
+		EventData.EventMagnitude = 4;
+		EventData.OptionalObject = LightAttackData;
+
+		AbilitySystemComponent->HandleGameplayEvent(EventData.EventTag, &EventData);
 		AbilitySystemComponent->AbilityLocalInputPressed(0);
 	}
 }

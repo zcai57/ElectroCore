@@ -30,6 +30,7 @@ class UAbilitySystemComponent;
 class UStartingAttributeSet;
 class UMotionWarpingComponent;
 class AJet;
+class UAttackDefinitionData;
 
 UCLASS()
 class PROJECTROBOT_API ARobotPlayerCharacter : public ACharacter, public IAbilitySystemInterface
@@ -151,6 +152,9 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS", meta = (AllowPrivateAccess = "true"))
 	FGameplayTagContainer FocusTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability", meta = (AllowPrivateAccess = "true"))
+	const TObjectPtr<UAttackDefinitionData> LightAttackData;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Attributes")
 	TObjectPtr<UDataTable> DT_StartingAttributes;
