@@ -75,6 +75,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void OnDeath();
+
+	UFUNCTION(BlueprintCallable)
+	void SetAllowStrafingRotation(bool bAllow);
 	
 protected:
 	virtual void BeginPlay() override;

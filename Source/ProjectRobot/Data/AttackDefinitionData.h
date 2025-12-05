@@ -20,6 +20,9 @@ struct FAttackDefinition
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float MotionWarpDistance = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	bool bTracking = true;
 };
 /**
  * 

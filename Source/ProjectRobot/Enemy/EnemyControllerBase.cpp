@@ -6,6 +6,7 @@
 #include "Components/StateTreeAIComponent.h"
 #include "Engine/TimerHandle.h"
 #include "Navigation/PathFollowingComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "ProjectRobot/Data/AttackDefinitionData.h"
 
 void AEnemyControllerBase::StartMove(FVector TargetLocation, AActor* MyTarget)
@@ -50,6 +51,18 @@ void AEnemyControllerBase::EnterCombatMode()
 	{
 		EnemyPawn->SetStrafingMovement(true);
 		SetFocus(CombatTarget, EAIFocusPriority::Gameplay);
+	}
+}
+
+/// Helper for Gameability, toggle rotation tracking
+void AEnemyControllerBase::SetAllowStrafingRotation(bool bAllow)
+{
+	if (bAllow)
+	{
+		SetFocus(CombatTarget, EAIFocusPriority::Gameplay);
+	} else
+	{
+		ClearFocus(EAIFocusPriority::Gameplay);
 	}
 }
 
