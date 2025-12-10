@@ -5,9 +5,11 @@
 
 UGA_HeavyHitReact::UGA_HeavyHitReact()
 {
-	
 	FAbilityTriggerData Trigger;
 	HitReactEventTag = FGameplayTag::RequestGameplayTag(FName("Event.HeavyHitReact"));
+
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.HeavyHitReact")));
+	
 	Trigger.TriggerTag = HitReactEventTag;
 	Trigger.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
 	AbilityTriggers.Add(Trigger);

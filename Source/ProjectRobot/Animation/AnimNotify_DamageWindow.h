@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ProjectRobot/Data/AttackTraceData.h"
+#include "ProjectRobot/Data/Attack/AttackTraceData.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "AnimNotify_DamageWindow.generated.h"
 

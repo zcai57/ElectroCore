@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "ProjectRobot/Data/DamageSpec.h"
+#include "ProjectRobot/Data/Attack/DamageSpec.h"
 #include "IDamageable.generated.h"
 
 // This class does not need to be modified.

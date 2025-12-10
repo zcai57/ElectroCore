@@ -3,11 +3,12 @@
 
 #include "EnemyControllerBase.h"
 #include "Enemy.h"
+#include "ProjectRobot/Data/AI/AIReactionData.h"
 #include "Components/StateTreeAIComponent.h"
 #include "Engine/TimerHandle.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "ProjectRobot/Data/AttackDefinitionData.h"
+#include "ProjectRobot/Data/Attack/AttackDefinitionData.h"
 
 void AEnemyControllerBase::StartMove(FVector TargetLocation, AActor* MyTarget)
 {
@@ -16,7 +17,6 @@ void AEnemyControllerBase::StartMove(FVector TargetLocation, AActor* MyTarget)
 		OnMoveRequestFinished.Broadcast(false);
 		return;
 	}
-	
 
 	EPathFollowingRequestResult::Type Result;
 	if (MyTarget == nullptr)
@@ -52,6 +52,12 @@ void AEnemyControllerBase::EnterCombatMode()
 		EnemyPawn->SetStrafingMovement(true);
 		SetFocus(CombatTarget, EAIFocusPriority::Gameplay);
 	}
+}
+
+/// Helper function for blueprint
+FVector AEnemyControllerBase::GetBackwardDirectionFromTarget()
+{
+	return (EnemyPawn->GetActorLocation() - CombatTarget->GetActorLocation()).GetSafeNormal();
 }
 
 /// Helper for Gameability, toggle rotation tracking

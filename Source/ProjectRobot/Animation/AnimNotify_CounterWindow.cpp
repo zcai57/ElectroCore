@@ -6,7 +6,7 @@
 #include "ProjectRobot/ProjectRobotCharacter.h"
 #include "ProjectRobot/ActorComponents/AttackComponent.h"
 #include "ProjectRobot/Character/RobotPlayerCharacter.h"
-#include "ProjectRobot/Data/CounterTraceData.h"
+#include "ProjectRobot/Data/Defense/CounterTraceData.h"
 
 void UAnimNotify_CounterWindow::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {

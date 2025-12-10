@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "ProjectRobot/Data/AttackTraceData.h"
-#include "ProjectRobot/Data/TraceWindow.h"
+#include "ProjectRobot/Data/Attack/AttackTraceData.h"
+#include "ProjectRobot/Data/Attack/TraceWindow.h"
 #include "AttackComponent.generated.h"
 
 class AWeaponBase;

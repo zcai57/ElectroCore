@@ -7,6 +7,9 @@ UGA_LightHitReact::UGA_LightHitReact()
 {
 	FAbilityTriggerData Trigger;
 	HitReactEventTag = FGameplayTag::RequestGameplayTag(FName("Event.LightHitReact"));
+
+	AbilityTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.LightHitReact")));
+	
 	Trigger.TriggerTag = HitReactEventTag;
 	Trigger.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
 	AbilityTriggers.Add(Trigger);

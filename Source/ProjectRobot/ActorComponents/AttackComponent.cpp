@@ -9,8 +9,9 @@
 #include "Components/BoxComponent.h"
 #include "Engine/OverlapResult.h"
 #include "ProjectRobot/Weapon/WeaponBase.h"
-#include "ProjectRobot/Data/AttackTraceData.h"
-#include "ProjectRobot/Data/TraceWindow.h"
+#include "ProjectRobot/Data/Attack/AttackTraceData.h"
+#include "ProjectRobot/Data/Attack/TraceWindow.h"
+#include "ProjectRobot/GAS/RobotAbilitySystemComponent.h"
 
 // Sets default values for this component's properties
 UAttackComponent::UAttackComponent()
@@ -24,7 +25,7 @@ UAttackComponent::UAttackComponent()
 
 
 // Called when the game starts
-void UAttackComponent::BeginPlay()
+void UAttackComponent::BeginPlay() 
 {
 	Super::BeginPlay();
 
@@ -263,6 +264,7 @@ void UAttackComponent::WeaponHitRegister(UPrimitiveComponent* OverlappedComponen
 	if (HitActors.Contains(OtherActor)) return;
 	HitActors.Add(OtherActor);
 
+	// Send Weapon Hit Gameplay Cue: for hit vfx, sfx
 	SendHitGameplayCue(OtherActor, OtherComp);
 	// GAS
 	if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(currOwner))
@@ -319,7 +321,7 @@ void UAttackComponent::HandleHitReactionAndHitStop(FGameplayEventData& Payload)
 	}
 
 	// Send HitReact
-	FGameplayEventData ReactPayload = Payload;
+	FGameplayEventData ReactPayload= Payload;
 	ReactPayload.EventTag = HitReactTag;
 	ReactPayload.EventMagnitude = Magnitude;
 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Target, ReactPayload.EventTag, ReactPayload);
@@ -339,53 +341,30 @@ void UAttackComponent::HandleHitEffect(FGameplayEventData& Payload)
 	check(currOwner);
 	check(Payload.Target);
 
-	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(currOwner);
+	URobotAbilitySystemComponent* ASC = Cast<URobotAbilitySystemComponent>(UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(currOwner));
 	UAbilitySystemComponent* TargetASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Payload.Target);
-
-	// Tell Target they are being hit
+	
+	//Tell Target they are being hit
 	FGameplayEventData DamageEvent;
 	DamageEvent.Target = Payload.Target;
 	DamageEvent.Instigator = currOwner;
 	DamageEvent.ContextHandle = Payload.ContextHandle;
-	DamageEvent.EventTag = FGameplayTag::RequestGameplayTag("Event.DamageTaken");
+	DamageEvent.EventMagnitude = static_cast<float>(currData->AttackMagnitude);
+	DamageEvent.OptionalObject = currData;
+	DamageEvent.EventTag = FGameplayTag::RequestGameplayTag("Event.AttackEffect");
 	
 	FGameplayTag OriginalAttackType = FGameplayTag::RequestGameplayTag("Event.MeleeAttack");
 	DamageEvent.TargetTags.AddTag(OriginalAttackType);
-
-	AActor* TargetActor = const_cast<AActor*>(Payload.Target.Get());
-	if (!TargetActor) return;
+	
+	// AActor* TargetActor = const_cast<AActor*>(Payload.Target.Get());
+	// if (!TargetActor) return;
     
 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
-		TargetActor,
+		currOwner,
 		DamageEvent.EventTag,
 		DamageEvent
 	);
 	
-	UE_LOG(LogTemp, Warning, TEXT("Attacker ASC: %p, Target ASC: %p"), ASC, TargetASC);
-	UE_LOG(LogTemp, Warning, TEXT("Attacker: %s, Target: %s"), *GetNameSafe(currOwner), *GetNameSafe(Payload.Target));
-	if (currData && currData->DamageEffect)
-	{
-		
-		// Damage Target
-		if (currData->DamageEffect)
-		{
-			FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(currData->DamageEffect, 1.0f, TargetASC->MakeEffectContext());
-			Spec.Data->SetSetByCallerMagnitude(currData->EnergyTag, currData->DamageToEnergy);
-			Spec.Data->SetSetByCallerMagnitude(currData->HeatTag, currData->DamageToHeat);
-
-			ASC->ApplyGameplayEffectSpecToTarget(*Spec.Data, TargetASC);
-		}
-
-		// Buff self
-		if (currData->BuffEffect)
-		{
-			FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(currData->BuffEffect, 1.0f, ASC->MakeEffectContext());
-			Spec.Data->SetSetByCallerMagnitude(currData->EnergyTag, currData->BuffToEnergy);
-			Spec.Data->SetSetByCallerMagnitude(currData->HeatTag, currData->BuffToHeat); // No buff to heat
-
-			ASC->ApplyGameplayEffectSpecToTarget(*Spec.Data, ASC);
-		}
-	}
 }
 
 /// Send Hit GameplayCue for sound/vfx

@@ -6,7 +6,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
-#include "ProjectRobot/Data/AttackDefinitionData.h"
+#include "ProjectRobot/Data/Attack/AttackDefinitionData.h"
 #include "ProjectRobot/Enemy/Enemy.h"
 #include "ProjectRobot/Enemy/EnemyControllerBase.h"
 

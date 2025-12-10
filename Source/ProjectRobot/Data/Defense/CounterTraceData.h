@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "TraceWindow.h"
+#include "ProjectRobot/Data/Attack/TraceWindow.h"
 #include "CounterTraceData.generated.h"
 
 /**

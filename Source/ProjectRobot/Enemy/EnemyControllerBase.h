@@ -6,6 +6,7 @@
 #include "AIController.h"
 #include "EnemyControllerBase.generated.h"
 
+class UAIReactionData;
 class AEnemy;
 class UStateTreeAIComponent;
 class UAttackDefinitionData;
@@ -44,6 +45,9 @@ public:
 	void EnterCombatMode();
 
 	UFUNCTION(BlueprintCallable)
+	FVector GetBackwardDirectionFromTarget();
+
+	UFUNCTION(BlueprintCallable)
 	void EnterIdleMode();
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat");
@@ -65,6 +69,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="AI")
 	UStateTreeAIComponent* StateTreeComp;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
+	UAIReactionData* ReactionData;
+
 	void StopMovement();
 
 	UFUNCTION(BlueprintCallable)
@@ -78,6 +85,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetAllowStrafingRotation(bool bAllow);
+
 	
 protected:
 	virtual void BeginPlay() override;

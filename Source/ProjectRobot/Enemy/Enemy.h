@@ -60,6 +60,8 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "LifeTime")
 	virtual void OnDeathEnd();
+
+	void OnDamageTaken(const FGameplayEventData& Payload) const;
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
@@ -104,8 +106,6 @@ protected:
 	
 	// void OnEnergyChanged(const FOnAttributeChangeData& Data);
 
-	void OnDamageTaken(const FGameplayEventData* Payload);
-
 	void StartDissolve();
 
 	void UpdateDissolve(float DeltaTime);
@@ -124,8 +124,8 @@ public:
 	bool IsStrafing();
 
 protected:
-	const AActor* LastHitInstigator;
-	bool LastHitWasMelee;
+	mutable TWeakObjectPtr<const AActor> LastHitInstigator;
+	mutable bool LastHitWasMelee;
 	bool bIsDying = false;
 	bool bIsBeingExecuted = false;
 private:

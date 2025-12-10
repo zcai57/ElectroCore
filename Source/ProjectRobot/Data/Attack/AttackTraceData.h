@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
-#include "DamageSpec.h"
 #include "TraceWindow.h"
 #include "GameplayEffect.h"
 #include "AttackTraceData.generated.h"

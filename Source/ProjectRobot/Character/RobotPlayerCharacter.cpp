@@ -20,7 +20,7 @@
 #include "../Vehicle/Jet.h"
 #include "Kismet/GameplayStatics.h"
 #include "ProjectRobot/ActorComponents/AttackComponent.h"
-#include "ProjectRobot/Data/AttackDefinitionData.h"
+#include "ProjectRobot/Data/Attack/AttackDefinitionData.h"
 #include "ProjectRobot/Weapon/WeaponBase.h"
 
 #define DEBUG_MOVEMENT 0

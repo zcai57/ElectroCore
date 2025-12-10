@@ -138,9 +138,9 @@ void AEnemy::AddCharacterAbilities()
 	ASC->RegisterGameplayTagEvent(FGameplayTag::RequestGameplayTag("State.Immobile"), EGameplayTagEventType::NewOrRemoved)
 		.AddUObject(this, &AEnemy::OnImmobileTagChanged);
 
-	ASC->GenericGameplayEventCallbacks.FindOrAdd(
-		   FGameplayTag::RequestGameplayTag("Event.DamageTaken")
-	   ).AddUObject(this, &AEnemy::OnDamageTaken);
+	// ASC->GenericGameplayEventCallbacks.FindOrAdd(
+	// 	   FGameplayTag::RequestGameplayTag("Event.DamageTaken")
+	//    ).AddUObject(this, &AEnemy::OnDamageTaken);
 }
 
 void AEnemy::BindAttributeDelegate()
@@ -198,18 +198,18 @@ void AEnemy::DrawDebugDirection()
 
 void AEnemy::TriggerExecution()
 {
-	check(LastHitInstigator);
+	check(LastHitInstigator.Get());
 	
 	// Create payload for execution
 	FGameplayEventData EventData;
-	EventData.Instigator = LastHitInstigator;   // Who will perform the execution
+	EventData.Instigator = LastHitInstigator.Get();   // Who will perform the execution
 	EventData.Target = this;
 
 	FGameplayTag ExecTag = FGameplayTag::RequestGameplayTag("Event.Execution");
 
 	// Send event to attacker
 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
-		const_cast<AActor*>(LastHitInstigator), // convert weak ptr → raw ptr
+		const_cast<AActor*>(LastHitInstigator.Get()),
 		ExecTag,
 		EventData
 	);
@@ -235,10 +235,10 @@ void AEnemy::TriggerNormalDeath()
 }
 
 
-void AEnemy::OnDamageTaken(const FGameplayEventData* Payload)
+void AEnemy::OnDamageTaken(const FGameplayEventData& Payload) const
 {
-	LastHitInstigator = Payload->Instigator.Get();
-	LastHitWasMelee = Payload->TargetTags.HasTag(FGameplayTag::RequestGameplayTag("Event.MeleeAttack"));
+	LastHitInstigator = Payload.Instigator;
+	LastHitWasMelee = Payload.TargetTags.HasTag(FGameplayTag::RequestGameplayTag("Event.MeleeAttack"));
 }
 
 
@@ -302,7 +302,7 @@ void AEnemy::OnDeathStart()
 
 	EnemyController->OnDeath();
 	
-	if (LastHitWasMelee && LastHitInstigator)
+	if (LastHitWasMelee && LastHitInstigator.Get())
 	{
 		TriggerExecution();
 		return;
