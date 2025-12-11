@@ -355,10 +355,14 @@ void AEnemy::ClampMotionWarpDist(float dist)
 		Direction = ActorLoc - SelfLoc;
 		float Distance = Direction.Size();
 
+		Direction.Normalize();
+
 		if (Distance > dist)
 		{
-			Direction.Normalize();
 			Target = dist * Direction + SelfLoc;
+		} else
+		{
+			Target = ActorLoc - (Direction * FrontOffset);
 		}
 	}
 	else {

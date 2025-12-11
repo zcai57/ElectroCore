@@ -43,6 +43,9 @@ class PROJECTROBOT_API AEnemy : public ACharacter, public IIEnemyAI, public IAbi
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tuning|LifeTime", meta = (AllowPrivateAccess = "true"))
 	UMaterialInstance* DissolveMat;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tuning|MotionWarp", meta = (AllowPrivateAccess = "true"))
+	float FrontOffset = 100.f;
 
 	UPROPERTY()
 	TArray<UMaterialInstanceDynamic*> TotalDissolveMat;

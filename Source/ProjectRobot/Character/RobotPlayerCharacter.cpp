@@ -716,6 +716,8 @@ void ARobotPlayerCharacter::ClampMotionWarpDist(float dist)
 	FVector Target = FVector::ZeroVector;
 	FVector Direction = FVector::ZeroVector;
 	FVector SelfLoc = GetActorLocation();
+	
+	
 	if (FocusedActor)
 	{
 		FVector ActorLoc = FocusedActor->GetActorLocation();
@@ -724,10 +726,14 @@ void ARobotPlayerCharacter::ClampMotionWarpDist(float dist)
 		Direction = ActorLoc - SelfLoc;
 		float Distance = Direction.Size();
 
+		Direction.Normalize();
+
 		if (Distance > dist)
 		{
-			Direction.Normalize();
 			Target = dist * Direction + SelfLoc;
+		} else
+		{
+			Target = ActorLoc - (Direction * MotionWarpFrontOffset);
 		}
 	}
 	else {

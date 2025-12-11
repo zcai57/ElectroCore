@@ -262,6 +262,7 @@ void UAttackComponent::WeaponHitRegister(UPrimitiveComponent* OverlappedComponen
 {
 	if (!OtherActor || OtherActor == currOwner) return;
 	if (HitActors.Contains(OtherActor)) return;
+	
 	HitActors.Add(OtherActor);
 
 	// Send Weapon Hit Gameplay Cue: for hit vfx, sfx
@@ -275,7 +276,16 @@ void UAttackComponent::WeaponHitRegister(UPrimitiveComponent* OverlappedComponen
 		Data.Instigator = currOwner;
 		// Add hitResult to EffectContext
 		FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
-		Context.AddHitResult(SweepResult, true);
+
+		FVector ImpactPoint = FVector::ZeroVector;
+		FVector ImpactNormal = FVector::ZeroVector;
+		ComputeImpact(ImpactPoint, ImpactNormal, OtherActor, OtherComp);
+		FHitResult Hit;
+
+		Hit.ImpactPoint = ImpactPoint;
+		Hit.ImpactNormal = ImpactNormal;
+		
+		Context.AddHitResult(Hit, true);
 		Data.ContextHandle = Context;
 		
 		HandleHitReactionAndHitStop(Data);
@@ -295,7 +305,7 @@ void UAttackComponent::HandleHitReactionAndHitStop(FGameplayEventData& Payload)
 	const FHitResult* Hit = Payload.ContextHandle.GetHitResult();
 	if (!Hit) return;
 
-	AActor* Target = Hit->GetActor();
+	AActor* Target = const_cast<AActor*>(Payload.Target.Get());
 	AActor* Attacker = const_cast<AActor*>(Payload.Instigator.Get()); // AvatarActor usually
 
 	if (!Target || !Attacker) return;

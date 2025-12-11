@@ -20,7 +20,7 @@ void UStartingAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffe
 		float NewEnergy = GetEnergy();
 		float OldHealth = PrevEnergy;
 
-		if (NewEnergy <= 0.f && OldHealth > 0.f)
+		if (NewEnergy <= 0.f && OldHealth >= 0.f)
 		{
 			AEnemy* Pawn = Cast<AEnemy>(GetOwningActor());
 			if (Pawn) Pawn->OnDeathStart();
