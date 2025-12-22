@@ -6,6 +6,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
+#include "ProjectRobot/Character/RobotPlayerCharacter.h"
 #include "ProjectRobot/Data/Attack/AttackDefinitionData.h"
 #include "ProjectRobot/Enemy/Enemy.h"
 #include "ProjectRobot/Enemy/EnemyControllerBase.h"
@@ -185,10 +186,14 @@ void UGA_LightAtkCombo::AdvanceCombo()
 	}
 
 	AEnemy* EnemyActor = Cast<AEnemy>(CurrentActorInfo->AvatarActor.Get());
-
+	ARobotPlayerCharacter* Player = Cast<ARobotPlayerCharacter>(CurrentActorInfo->AvatarActor.Get());
+	
 	if (EnemyActor)
 	{
 		EnemyActor->ClampMotionWarpDist(Step.MotionWarpDistance);
+	} else if (Player)
+	{
+		Player->ClampMotionWarpDist(Step.MotionWarpDistance);
 	}
 
 	// Active MontageTask

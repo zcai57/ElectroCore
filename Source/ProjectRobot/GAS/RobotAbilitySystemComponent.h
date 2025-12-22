@@ -16,4 +16,9 @@ class PROJECTROBOT_API URobotAbilitySystemComponent : public UAbilitySystemCompo
 	
 public:
 	void AddCharacterAbilities(const TArray<TSubclassOf<UGameplayAbility>>& StartupAbilities);
+	void RemoveAbilityBySlot(FGameplayTag SlotTag);
+	void GrantAbilityToSlot(FGameplayTag SlotTag, TSubclassOf<UGameplayAbility> AbilityClass);
+	
+private:
+	TMap<FGameplayTag, FGameplayAbilitySpecHandle> GrantedAbilityHandles;
 };

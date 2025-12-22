@@ -1,7 +1,7 @@
 echo off
 
 rem Remove visual studio project files
-del *.sln
+
 rmdir /s /q .vs
 rmdir /s /q Binaries
 rmdir /s /q Intermediate

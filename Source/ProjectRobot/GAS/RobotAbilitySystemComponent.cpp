@@ -19,3 +19,31 @@ void URobotAbilitySystemComponent::AddCharacterAbilities(const TArray<TSubclassO
 }
 
 
+void URobotAbilitySystemComponent::RemoveAbilityBySlot(FGameplayTag SlotTag)
+{
+	if (FGameplayAbilitySpecHandle* HandlePtr = GrantedAbilityHandles.Find(SlotTag))
+	{
+		ClearAbility(*HandlePtr);
+		GrantedAbilityHandles.Remove(SlotTag);
+	}
+}
+
+void URobotAbilitySystemComponent::GrantAbilityToSlot(FGameplayTag SlotTag, TSubclassOf<UGameplayAbility> AbilityClass)
+{
+	if (!AbilityClass)
+		return;
+	
+	FGameplayAbilitySpec AbilitySpec = FGameplayAbilitySpec(AbilityClass, 1, INDEX_NONE);
+	if (SlotTag == FGameplayTag::RequestGameplayTag("AbilitySet.LightAtk"))
+	{
+		AbilitySpec.InputID = 0;
+	}
+	FGameplayAbilitySpecHandle Handle = GiveAbility(AbilitySpec);
+
+	GrantedAbilityHandles.Add(SlotTag, Handle);
+}
+
+
+
+
+

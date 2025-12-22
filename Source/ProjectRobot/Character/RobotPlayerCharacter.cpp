@@ -18,13 +18,12 @@
 #include "RobotPlayerMovement.h"
 #include "MotionWarpingComponent.h"
 #include "../Vehicle/Jet.h"
-#include "Kismet/GameplayStatics.h"
 #include "ProjectRobot/ActorComponents/AttackComponent.h"
 #include "ProjectRobot/Data/Attack/AttackDefinitionData.h"
-#include "ProjectRobot/Weapon/WeaponBase.h"
 
 #define DEBUG_MOVEMENT 0
 
+#pragma region Ctor
 // Sets default values
 ARobotPlayerCharacter::ARobotPlayerCharacter(const FObjectInitializer& ObjectInitializer) 
 : Super(ObjectInitializer.SetDefaultSubobjectClass<URobotPlayerMovement>(ACharacter::CharacterMovementComponentName))
@@ -108,396 +107,9 @@ ARobotPlayerCharacter::ARobotPlayerCharacter(const FObjectInitializer& ObjectIni
 	ContextualAnimComp = CreateDefaultSubobject<UContextualAnimSceneActorComponent>(TEXT("ContextualAnimComp"));
 }
 
-/// <summary>
-/// 进入FocusTarget模式
-/// Call from Focus GameplayAbility
-/// </summary>
-/// <param name="FocusedTarget"></param>
-void ARobotPlayerCharacter::SetFocusTarget(AActor* FocusedTarget)
-{
-	check(FocusedTarget);
-	
-	RobotPlayerMovementComponent->bOrientRotationToMovement = false;
-	RobotPlayerMovementComponent->bUseControllerDesiredRotation = true;
+#pragma endregion
 
-	bIsFocused = true;
-	FocusedActor = FocusedTarget;
-
-	// When set Focus succeeded, change camera mode
-	CameraBoom->bEnableCameraRotationLag = true;
-	CameraBoom->bUsePawnControlRotation = false;
-}
-
-
-
-// Called when the game starts or when spawned
-void ARobotPlayerCharacter::BeginPlay()
-{
-	Super::BeginPlay();
-	// Init Movement Component
-	RobotPlayerMovementComponent = Cast<URobotPlayerMovement>(GetCharacterMovement());
-	// Set up Apparel items
-	SetDefaultApparel();
-	//AbilitySystemComponent->InitAbilityActorInfoInitAbilityActorInfo(this, this);
-	// Start Abilities
-	AddCharacterAbilities();
-	// Set up Attribute
-
-	// Use Gameplay Effect to init stats.
-	// FGameplayEffectContextHandle EffectContext = AbilitySystemComponent->MakeEffectContext();
-	// EffectContext.AddSourceObject(this);
-	//
-	// FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(StartingAttributeEffect, 1.f, EffectContext);
-	// if (SpecHandle.IsValid())
-	// {
-	// 	AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
-	// }
-	// AbilitySystemComponent->InitStats(UStartingAttributeSet::StaticClass(), DT_StartingAttributes);
-	if (IsValid(AbilitySystemComponent))
-	{
-		StartAttributeSet = AbilitySystemComponent->GetSet<UStartingAttributeSet>();
-	}
-
-	UE_LOG(LogTemp, Warning, TEXT("InitStats: %s"), *GetNameSafe(DT_StartingAttributes));
-	if (StartAttributeSet)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Heat=%f Energy=%f Status=%f"),
-			StartAttributeSet->GetHeat(), StartAttributeSet->GetEnergy(), StartAttributeSet->GetStatus());
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("StartAttributeSet is NULL"));
-	}
-}
-
-void ARobotPlayerCharacter::Move(const FInputActionValue& Value)
-{
-	if (bImmobile) return;
-	// input is a Vector2D
-	FVector2D MovementVector = Value.Get<FVector2D>();
-
-	if (Controller != nullptr)
-	{
-		// find out which way is forward
-		const FRotator Rotation = Controller->GetControlRotation();
-		// Flatten rotation, zero out pitch and roll
-		const FRotator YawRotation(0, Rotation.Yaw, 0);
-
-		// get forward vector
-		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-
-		// get right vector 
-		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-
-		// add movement 
-		AddMovementInput(ForwardDirection, MovementVector.Y);
-		AddMovementInput(RightDirection, MovementVector.X);
-
-		// Align actor rotation to control rotation 
-		if (GetActorRotation() != Rotation)
-		{
-			SetActorRotation(FMath::RInterpTo(GetActorRotation(), Rotation, FApp::GetDeltaTime(), 0.3f));
-		}
-	}
-}
-
-void ARobotPlayerCharacter::Look(const FInputActionValue& Value)
-{
-	// // input is a Vector2D
-	// FVector2D LookAxisVector = Value.Get<FVector2D>();
-	//
-	//
-	// // Rotate CameraBoom using the Look input (X for Yaw, Y for Pitch)
-	// FRotator NewRotation = Controller->GetControlRotation();
-	// if (!bIsFocused) NewRotation.Yaw += LookAxisVector.X * CameraLookSensitivity;
-	// NewRotation.Pitch = FMath::Clamp(NewRotation.Pitch + LookAxisVector.Y * CameraLookSensitivity, -60.f, 60.f); // Limit pitch range
-	//
-	// //CameraBoom->SetRelativeRotation(NewRotation);
-	// const FRotator Rotation = Controller->GetControlRotation();
-	// Controller->SetControlRotation(NewRotation);
-	FVector2D LookInput = Value.Get<FVector2D>();
-	FRotator CurrentRot = Controller->GetControlRotation();
-	
-	
-	if (bIsFocused)
-	{
-		// --- SOFT INTERPOLATED CAMERA IN FOCUS MODE ---
-		FRotator TargetRot = CurrentRot;
-		TargetRot.Yaw += LookInput.X * CameraLookSensitivity;
-		TargetRot.Pitch = FMath::Clamp(CurrentRot.Pitch + LookInput.Y * CameraLookSensitivity, -60.f, 60.f);
-		
-		FRotator NewRot = FMath::RInterpTo(CurrentRot, TargetRot, GetWorld()->GetDeltaSeconds(), LookInterpSpeed);
-
-		Controller->SetControlRotation(NewRot);
-	}
-	else
-	{
-		// --- INSTANT CAMERA IN FREE LOOK MODE ---
-		FRotator NewRot = CurrentRot;
-		NewRot.Yaw += LookInput.X * CameraLookSensitivity;
-		NewRot.Pitch = FMath::Clamp(CurrentRot.Pitch + LookInput.Y * CameraLookSensitivity, -60.f, 60.f);
-
-		Controller->SetControlRotation(NewRot);
-	}
-}
-
-void ARobotPlayerCharacter::Equip(const FInputActionValue& Value)
-{
-	
-}
-
-/// Determine what atk ability to trigger
-/// Normal: Light Atk Gameplay Ability
-/// Dodge: Dodge Atk
-/// Block: Block Atk
-/// @param Value 
-void ARobotPlayerCharacter::LightAttack(const FInputActionValue& Value)
-{
-	if (!AbilitySystemComponent || !LightComboTag.IsValid()) return;
-
-	if (AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag("State.DodgeWindowOpen")))
-	{
-		if (AbilitySystemComponent->TryActivateAbilitiesByTag(DodgeAttackTag))
-		{
-			UE_LOG(LogTemp, Log, TEXT("Triggered DodgeAttack while dodging."));
-		}
-	}
-	else if (AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag("State.BlockWindowOpen")))
-	{
-		if (AbilitySystemComponent->TryActivateAbilitiesByTag(BlockAttackTag))
-		{
-			UE_LOG(LogTemp, Log, TEXT("Triggered BlockAttack while blocking."));
-		}
-	}
-	else {
-		// AbilitySystemComponent->TryActivateAbilitiesByTag(LightComboTag);
-		FGameplayEventData EventData;
-		EventData.EventTag = FGameplayTag::RequestGameplayTag("Event.MeleeAttack");
-		EventData.EventMagnitude = 4;
-		EventData.OptionalObject = LightAttackData;
-
-		AbilitySystemComponent->HandleGameplayEvent(EventData.EventTag, &EventData);
-		AbilitySystemComponent->AbilityLocalInputPressed(0);
-	}
-}
-
-/// Trigger HeavyAtk Gameplay Ability
-/// @param Value 
-void ARobotPlayerCharacter::HeavyAttack(const FInputActionValue& Value)
-{
-	if (!AbilitySystemComponent || !HeavyAttackTag.IsValid()) return;
-	AbilitySystemComponent->TryActivateAbilitiesByTag(HeavyAttackTag);
-
-}
-
-/// Not used rn. 
-/// @param bClientSimulation 
-void ARobotPlayerCharacter::Crouch(bool bClientSimulation)
-{
-	/*Super::Crouch(bClientSimulation);*/
-
-	if (RobotPlayerMovementComponent)
-	{
-		RobotPlayerMovementComponent->CrouchPressed();
-	}
-	else {
-		UE_LOG(LogTemp, Warning, TEXT("RobotPlayer Movement Component is null!"));
-	}
-}
-
-/// Toggle Focus Mode
-/// Focus: Add tag
-/// UnFocus: Change movement mode and reset Focus Actor
-void ARobotPlayerCharacter::Focus()
-{
-	// 不是Focus状态，进入Focus
-	if (!bIsFocused)
-	{
-		if (!AbilitySystemComponent || !FocusTag.IsValid()) return;
-		AbilitySystemComponent->TryActivateAbilitiesByTag(FocusTag);
-		
-	}
-	else {
-		if (!AbilitySystemComponent || !FocusTag.IsValid()) return;
-		AbilitySystemComponent->CancelAbilities(&FocusTag);
-		// 改变行动模式
-		RobotPlayerMovementComponent->bOrientRotationToMovement = true;
-		RobotPlayerMovementComponent->bUseControllerDesiredRotation = false;
-		// Reset状态
-		FocusedActor = nullptr;
-		bIsFocused = false;
-
-		CameraBoom->bUsePawnControlRotation = true;
-		CameraBoom->bEnableCameraRotationLag = false;
-	}
-}
-
-
-void ARobotPlayerCharacter::Slide()
-{
-
-}
-
-/// Trigger Dodge Gameplay Ability
-void ARobotPlayerCharacter::Dodge()
-{
-	if (!AbilitySystemComponent || !DodgeTag.IsValid()) return;
-	AbilitySystemComponent->TryActivateAbilitiesByTag(DodgeTag);
-}
-
-
-/// Trigger AbilityAction 1
-void ARobotPlayerCharacter::HandleAbilityAction1()
-{
-	UE_LOG(LogTemp, Warning, TEXT("Handle Ability 1"));
-	AJet* JetActor;
-	APlayerController* PC = Cast<APlayerController>(GetController());
-	if (JetBpClass)
-	{
-		this->SetActorHiddenInGame(true);
-		this->SetActorEnableCollision(false);
-		JetActor = GetWorld()->SpawnActor<AJet>(JetBpClass, GetActorTransform());
-		JetActor->Init(this);
-		PC->Possess(JetActor);
-	}
-}
-
-/// Advance State GameplayAbility
-void ARobotPlayerCharacter::AdvanceState()
-{
-	if (!AbilitySystemComponent || !AdvanceTag.IsValid()) return;
-	AbilitySystemComponent->TryActivateAbilitiesByTag(AdvanceTag);
-}
-
-void ARobotPlayerCharacter::Block()
-{
-	if (!AbilitySystemComponent || !BlockTag.IsValid()) return;
-	AbilitySystemComponent->TryActivateAbilitiesByTag(BlockTag);
-}
-
-
-void ARobotPlayerCharacter::SprintPressed()
-{
-	if (RobotPlayerMovementComponent) {
-		RobotPlayerMovementComponent->SprintPressed();
-	}
-	else {
-		UE_LOG(LogTemp, Warning, TEXT("RobotPlayer Movement Component is null!"));
-	}
-	
-}
-
-void ARobotPlayerCharacter::SprintReleased()
-{
-	if (RobotPlayerMovementComponent)
-	{
-		RobotPlayerMovementComponent->SprintReleased();
-	}
-	else {
-		UE_LOG(LogTemp, Warning, TEXT("RobotPlayer Movement Component is null!"));
-	}
-	
-}
-
-void ARobotPlayerCharacter::Jump()
-{
-	// Boosting
-	if (RobotPlayerMovementComponent->IsFalling() && !RobotPlayerMovementComponent->bWantsToBoost)
-	{
-		RobotPlayerMovementComponent->BoostPressed();
-	}
-	else {
-		ACharacter::Jump();
-	}
-}
-
-void ARobotPlayerCharacter::StopJumping()
-{
-	if(RobotPlayerMovementComponent->bWantsToBoost)
-	{
-		RobotPlayerMovementComponent->BoostReleased();
-	}
-	ACharacter::StopJumping();	
-}
-
-void ARobotPlayerCharacter::Death()
-{
-	
-}
-
-void ARobotPlayerCharacter::BindAttributeDelegate()
-{
-	URobotAbilitySystemComponent* ASC = CastChecked<URobotAbilitySystemComponent>(AbilitySystemComponent);
-	const UStartingAttributeSet* AttrSet = AbilitySystemComponent->GetSet<UStartingAttributeSet>();
-	if (!AttrSet) return;
-	
-	FGameplayAttribute EnergyAttr = UStartingAttributeSet::GetEnergyAttribute();
-	ASC->GetGameplayAttributeValueChangeDelegate(EnergyAttr).AddUObject(this, &ARobotPlayerCharacter::OnEnergyChanged);
-}
-
-void ARobotPlayerCharacter::OnEnergyChanged(const FOnAttributeChangeData& Data)
-{
-	
-}
-
-
-void ARobotPlayerCharacter::Input_CrouchStarted()
-{
-	Crouch();
-}
-
-void ARobotPlayerCharacter::OnSteppingTagChanged(FGameplayTag, int32 NewCount)
-{
-	bIsStepping = (NewCount > 0);
-}
-
-void ARobotPlayerCharacter::OnImmobileTagChanged(FGameplayTag, int32 NewCount)
-{
-	bImmobile = (NewCount > 0);
-}
-
-
-// Called every frame
-void ARobotPlayerCharacter::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-	if (bIsStepping)
-	{
-		AnimationSteps();
-	}
-#if DEBUG_MOVEMENT == 1
-	FString VelocityString = RobotPlayerMovementComponent->Velocity.ToString();
-	GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Red, FString::Printf(TEXT("Velocity: %s"), *VelocityString));
-
-#endif // DEBUGMOVEMENT
-
-	// Set ControlRotation to direciton of focusedActor
-	if (bIsFocused && FocusedActor)
-	{
-		FVector ToTarget = FocusedActor->GetActorLocation() - GetActorLocation();
-		FRotator TargetRot = ToTarget.Rotation();
-		APlayerController* PlayerController = Cast<APlayerController>(GetController());
-		if (PlayerController)
-		{
-			FRotator CharacterRot = PlayerController->GetControlRotation();
-			// Ignore Pitch
-			TargetRot.Pitch = CharacterRot.Pitch;
-			PlayerController->SetControlRotation(FMath::RInterpTo(CharacterRot, TargetRot, DeltaTime, FocusInterpSpeed));
-		}
-		CameraBoom->SocketOffset = FMath::VInterpTo(CameraBoom->SocketOffset, CameraSocketOffset, DeltaTime, OffsetInterpSpeed);
-
-		CameraLockOn();
-	}
-	else {
-		CameraBoom->SocketOffset = FMath::VInterpTo(CameraBoom->SocketOffset, FVector::ZeroVector, DeltaTime, OffsetInterpSpeed);
-	}
-	
-
-	// Notify Camera Movement
-	NotifyCameraMove(DeltaTime);
-}
-
+#pragma region Setup
 // Called to bind functionality to input
 void ARobotPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -548,8 +160,11 @@ void ARobotPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 		// Sprint Released
 		//EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &ARobotPlayerCharacter::SprintReleased);
 
-		// Ability1 Pressed
-		EnhancedInputComponent->BindAction(AdvanceStateAction, ETriggerEvent::Started, this, &ARobotPlayerCharacter::AdvanceState);
+		// Ability E Pressed
+		EnhancedInputComponent->BindAction(AdvanceStateAction, ETriggerEvent::Started, this, &ARobotPlayerCharacter::AdvanceRobotState);
+		
+		// Ability R Pressed
+		EnhancedInputComponent->BindAction(ResetStateAction, ETriggerEvent::Started, this, &ARobotPlayerCharacter::ResetRobotState);
 
 		// Ability2 Presed
 		EnhancedInputComponent->BindAction(BlockAction, ETriggerEvent::Started, this, &ARobotPlayerCharacter::Block);
@@ -563,21 +178,19 @@ void ARobotPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 	}
 }
 
-void ARobotPlayerCharacter::PlayLightAttackMontage()
+void ARobotPlayerCharacter::AddCharacterAbilities()
 {
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-	bIsStepping = true;
-	bImmobile = true;
-	if (AnimInstance && LightAttackMontage)
-	{
-		AnimInstance->Montage_Play(LightAttackMontage);
-	}
-}
+	URobotAbilitySystemComponent* RobotASC = CastChecked<URobotAbilitySystemComponent>(AbilitySystemComponent);
 
+	/*if (!HasAuthority()) return;*/
 
+	RobotASC->InitAbilityActorInfo(this, this);
+	RobotASC->AddCharacterAbilities(StartupAbilities);
 
-void ARobotPlayerCharacter::DisableMovementWhenAction()
-{
+	RobotASC->RegisterGameplayTagEvent(FGameplayTag::RequestGameplayTag("State.Stepping"), EGameplayTagEventType::NewOrRemoved)
+		.AddUObject(this, &ARobotPlayerCharacter::OnSteppingTagChanged);
+	RobotASC->RegisterGameplayTagEvent(FGameplayTag::RequestGameplayTag("State.Immobile"), EGameplayTagEventType::NewOrRemoved)
+		.AddUObject(this, &ARobotPlayerCharacter::OnImmobileTagChanged);
 }
 
 void ARobotPlayerCharacter::SetDefaultApparel()
@@ -634,7 +247,421 @@ void ARobotPlayerCharacter::SetDefaultApparel()
 		UE_LOG(LogTemp, Warning, TEXT("Shield Size Mesh is missing!"));
 	}
 }
+// Called when the game starts or when spawned
+void ARobotPlayerCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+	// Init Movement Component
+	RobotPlayerMovementComponent = Cast<URobotPlayerMovement>(GetCharacterMovement());
+	// Set up Apparel items
+	SetDefaultApparel();
+	//AbilitySystemComponent->InitAbilityActorInfoInitAbilityActorInfo(this, this);
+	// Start Abilities
+	AddCharacterAbilities();
+	// Reset Robot State
+	ResetRobotState();
+	
+	if (IsValid(AbilitySystemComponent))
+	{
+		StartAttributeSet = AbilitySystemComponent->GetSet<UStartingAttributeSet>();
+	}
 
+	UE_LOG(LogTemp, Warning, TEXT("InitStats: %s"), *GetNameSafe(DT_StartingAttributes));
+	if (StartAttributeSet)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Heat=%f Energy=%f Status=%f"),
+			StartAttributeSet->GetHeat(), StartAttributeSet->GetEnergy(), StartAttributeSet->GetStatus());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("StartAttributeSet is NULL"));
+	}
+}
+
+#pragma endregion
+
+#pragma region Locomotion
+
+void ARobotPlayerCharacter::Input_CrouchStarted()
+{
+	Crouch();
+}
+
+void ARobotPlayerCharacter::SprintPressed()
+{
+	if (RobotPlayerMovementComponent) {
+		RobotPlayerMovementComponent->SprintPressed();
+	}
+	else {
+		UE_LOG(LogTemp, Warning, TEXT("RobotPlayer Movement Component is null!"));
+	}
+	
+}
+
+void ARobotPlayerCharacter::SprintReleased()
+{
+	if (RobotPlayerMovementComponent)
+	{
+		RobotPlayerMovementComponent->SprintReleased();
+	}
+	else {
+		UE_LOG(LogTemp, Warning, TEXT("RobotPlayer Movement Component is null!"));
+	}
+	
+}
+
+void ARobotPlayerCharacter::Jump()
+{
+	// Boosting
+	if (RobotPlayerMovementComponent->IsFalling() && !RobotPlayerMovementComponent->bWantsToBoost)
+	{
+		RobotPlayerMovementComponent->BoostPressed();
+	}
+	else {
+		ACharacter::Jump();
+	}
+}
+
+void ARobotPlayerCharacter::StopJumping()
+{
+	if(RobotPlayerMovementComponent->bWantsToBoost)
+	{
+		RobotPlayerMovementComponent->BoostReleased();
+	}
+	ACharacter::StopJumping();	
+}
+
+void ARobotPlayerCharacter::Move(const FInputActionValue& Value)
+{
+	if (bImmobile) return;
+	// input is a Vector2D
+	FVector2D MovementVector = Value.Get<FVector2D>();
+
+	if (Controller != nullptr)
+	{
+		// find out which way is forward
+		const FRotator Rotation = Controller->GetControlRotation();
+		// Flatten rotation, zero out pitch and roll
+		const FRotator YawRotation(0, Rotation.Yaw, 0);
+
+		// get forward vector
+		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+
+		// get right vector 
+		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
+		// add movement 
+		AddMovementInput(ForwardDirection, MovementVector.Y);
+		AddMovementInput(RightDirection, MovementVector.X);
+
+		// Align actor rotation to control rotation 
+		if (GetActorRotation() != Rotation)
+		{
+			SetActorRotation(FMath::RInterpTo(GetActorRotation(), Rotation, FApp::GetDeltaTime(), 0.3f));
+		}
+	}
+}
+
+void ARobotPlayerCharacter::Look(const FInputActionValue& Value)
+{
+	FVector2D LookInput = Value.Get<FVector2D>();
+	FRotator CurrentRot = Controller->GetControlRotation();
+	
+	
+	if (bIsFocused)
+	{
+		// --- SOFT INTERPOLATED CAMERA IN FOCUS MODE ---
+		FRotator TargetRot = CurrentRot;
+		TargetRot.Yaw += LookInput.X * CameraLookSensitivity;
+		TargetRot.Pitch = FMath::Clamp(CurrentRot.Pitch + LookInput.Y * CameraLookSensitivity, -60.f, 60.f);
+		
+		FRotator NewRot = FMath::RInterpTo(CurrentRot, TargetRot, GetWorld()->GetDeltaSeconds(), LookInterpSpeed);
+
+		Controller->SetControlRotation(NewRot);
+	}
+	else
+	{
+		// --- INSTANT CAMERA IN FREE LOOK MODE ---
+		FRotator NewRot = CurrentRot;
+		NewRot.Yaw += LookInput.X * CameraLookSensitivity;
+		NewRot.Pitch = FMath::Clamp(CurrentRot.Pitch + LookInput.Y * CameraLookSensitivity, -60.f, 60.f);
+
+		Controller->SetControlRotation(NewRot);
+	}
+}
+
+/// Not used rn. 
+/// @param bClientSimulation 
+void ARobotPlayerCharacter::Crouch(bool bClientSimulation)
+{
+	/*Super::Crouch(bClientSimulation);*/
+
+	if (RobotPlayerMovementComponent)
+	{
+		RobotPlayerMovementComponent->CrouchPressed();
+	}
+	else {
+		UE_LOG(LogTemp, Warning, TEXT("RobotPlayer Movement Component is null!"));
+	}
+}
+
+#pragma endregion
+
+void ARobotPlayerCharacter::Equip(const FInputActionValue& Value)
+{
+	
+}
+
+#pragma region Combat
+void ARobotPlayerCharacter::Death()
+{
+	
+}
+
+void ARobotPlayerCharacter::SetInvulnerability(bool Invulnerable)
+{
+	if (Invulnerable)
+	{
+		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
+	} else
+	{
+		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	}
+}
+
+/// Determine what atk ability to trigger
+/// Normal: Light Atk Gameplay Ability
+/// Dodge: Dodge Atk
+/// Block: Block Atk
+/// @param Value 
+void ARobotPlayerCharacter::LightAttack(const FInputActionValue& Value)
+{
+	if (!AbilitySystemComponent || !LightComboTag.IsValid()) return;
+
+	if (AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag("State.DodgeWindowOpen")))
+	{
+		if (AbilitySystemComponent->TryActivateAbilitiesByTag(DodgeAttackTag))
+		{
+			UE_LOG(LogTemp, Log, TEXT("Triggered DodgeAttack while dodging."));
+		}
+	}
+	else if (AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag("State.BlockWindowOpen")))
+	{
+		if (AbilitySystemComponent->TryActivateAbilitiesByTag(BlockAttackTag))
+		{
+			UE_LOG(LogTemp, Log, TEXT("Triggered BlockAttack while blocking."));
+		}
+	}
+	else {
+		// AbilitySystemComponent->TryActivateAbilitiesByTag(LightComboTag);
+		FGameplayEventData EventData;
+		EventData.EventTag = FGameplayTag::RequestGameplayTag("Event.MeleeAttack");
+		EventData.EventMagnitude = 4;
+		EventData.OptionalObject = CurrentAbilitySet->LightAtkData;
+
+		AbilitySystemComponent->HandleGameplayEvent(EventData.EventTag, &EventData);
+		AbilitySystemComponent->AbilityLocalInputPressed(0);
+	}
+}
+
+/// Trigger HeavyAtk Gameplay Ability
+/// @param Value 
+void ARobotPlayerCharacter::HeavyAttack(const FInputActionValue& Value)
+{
+	if (!AbilitySystemComponent || !HeavyAttackTag.IsValid()) return;
+	AbilitySystemComponent->TryActivateAbilitiesByTag(HeavyAttackTag);
+
+}
+
+/// Toggle Focus Mode
+/// Focus: Add tag
+/// UnFocus: Change movement mode and reset Focus Actor
+void ARobotPlayerCharacter::Focus()
+{
+	// 不是Focus状态，进入Focus
+	if (!bIsFocused)
+	{
+		if (!AbilitySystemComponent || !FocusTag.IsValid()) return;
+		AbilitySystemComponent->TryActivateAbilitiesByTag(FocusTag);
+		
+	}
+	else {
+		if (!AbilitySystemComponent || !FocusTag.IsValid()) return;
+		AbilitySystemComponent->CancelAbilities(&FocusTag);
+		// 改变行动模式
+		RobotPlayerMovementComponent->bOrientRotationToMovement = true;
+		RobotPlayerMovementComponent->bUseControllerDesiredRotation = false;
+		// Reset状态
+		FocusedActor = nullptr;
+		bIsFocused = false;
+
+		CameraBoom->bUsePawnControlRotation = true;
+		CameraBoom->bEnableCameraRotationLag = false;
+	}
+}
+
+
+void ARobotPlayerCharacter::Slide()
+{
+
+}
+
+void ARobotPlayerCharacter::Block()
+{
+	if (!AbilitySystemComponent || !BlockTag.IsValid()) return;
+	AbilitySystemComponent->TryActivateAbilitiesByTag(BlockTag);
+}
+
+/// Trigger Dodge Gameplay Ability
+void ARobotPlayerCharacter::Dodge()
+{
+	if (!AbilitySystemComponent || !DodgeTag.IsValid()) return;
+	AbilitySystemComponent->TryActivateAbilitiesByTag(DodgeTag);
+}
+
+
+/// Trigger AbilityAction 1
+void ARobotPlayerCharacter::HandleAbilityAction1()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Handle Ability 1"));
+	AJet* JetActor;
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (JetBpClass)
+	{
+		this->SetActorHiddenInGame(true);
+		this->SetActorEnableCollision(false);
+		JetActor = GetWorld()->SpawnActor<AJet>(JetBpClass, GetActorTransform());
+		JetActor->Init(this);
+		PC->Possess(JetActor);
+	}
+}
+
+#pragma endregion
+
+#pragma region Robot State
+
+void ARobotPlayerCharacter::AdvanceRobotState()
+{
+	if (!AbilitySystemComponent || !AdvanceTag.IsValid()) return;
+	AbilitySystemComponent->TryActivateAbilitiesByTag(AdvanceTag);
+	
+	switch (RobotState)
+	{
+	case ERobotState::ERS_Idle:
+		if (URobotAbilitySetData** AbilitySet  = RobotAbilitySets.Find(ERobotState::ERS_Drive))
+		{
+			ApplyAbilitySet(*AbilitySet);
+		}
+		RobotState = ERobotState::ERS_Drive;
+		break;
+	case ERobotState::ERS_Drive:
+		if (URobotAbilitySetData** AbilitySet  = RobotAbilitySets.Find(ERobotState::ERS_OverDrive))
+		{
+			ApplyAbilitySet(*AbilitySet);
+		}
+		RobotState = ERobotState::ERS_OverDrive;
+		break;
+	case ERobotState::ERS_OverDrive:
+		break;
+	}
+}
+
+void ARobotPlayerCharacter::ResetRobotState()
+{
+	URobotAbilitySetData** AbilitySet  = RobotAbilitySets.Find(ERobotState::ERS_Idle);
+	ApplyAbilitySet(*AbilitySet);
+}
+
+void ARobotPlayerCharacter::ApplyAbilitySet(URobotAbilitySetData* NewSet)
+{
+	URobotAbilitySystemComponent* ASC = CastChecked<URobotAbilitySystemComponent>(AbilitySystemComponent);
+
+	// For each slot in the new set:
+	for (auto& Pair : NewSet->Slots)
+	{
+		FGameplayTag SlotTag = Pair.Key;
+		TSubclassOf<UGameplayAbility> AbilityClass = Pair.Value;
+
+		// Remove existing ability from this slot
+		ASC->RemoveAbilityBySlot(SlotTag);
+
+		// Grant new ability and store handle
+		ASC->GrantAbilityToSlot(SlotTag, AbilityClass);
+	}
+
+	CurrentAbilitySet = NewSet;
+}
+
+#pragma endregion
+
+#pragma region Delegate
+void ARobotPlayerCharacter::BindAttributeDelegate()
+{
+	URobotAbilitySystemComponent* ASC = CastChecked<URobotAbilitySystemComponent>(AbilitySystemComponent);
+	const UStartingAttributeSet* AttrSet = AbilitySystemComponent->GetSet<UStartingAttributeSet>();
+	if (!AttrSet) return;
+	
+	FGameplayAttribute EnergyAttr = UStartingAttributeSet::GetEnergyAttribute();
+	ASC->GetGameplayAttributeValueChangeDelegate(EnergyAttr).AddUObject(this, &ARobotPlayerCharacter::OnEnergyChanged);
+}
+void ARobotPlayerCharacter::OnEnergyChanged(const FOnAttributeChangeData& Data)
+{
+	
+}
+void ARobotPlayerCharacter::OnSteppingTagChanged(FGameplayTag, int32 NewCount)
+{
+	bIsStepping = (NewCount > 0);
+}
+
+void ARobotPlayerCharacter::OnImmobileTagChanged(FGameplayTag, int32 NewCount)
+{
+	bImmobile = (NewCount > 0);
+}
+
+#pragma endregion
+
+// Called every frame
+void ARobotPlayerCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (bIsStepping)
+	{
+		AnimationSteps();
+	}
+#if DEBUG_MOVEMENT == 1
+	FString VelocityString = RobotPlayerMovementComponent->Velocity.ToString();
+	GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Red, FString::Printf(TEXT("Velocity: %s"), *VelocityString));
+
+#endif // DEBUGMOVEMENT
+
+	// Set ControlRotation to direciton of focusedActor
+	if (bIsFocused && FocusedActor)
+	{
+		FVector ToTarget = FocusedActor->GetActorLocation() - GetActorLocation();
+		FRotator TargetRot = ToTarget.Rotation();
+		APlayerController* PlayerController = Cast<APlayerController>(GetController());
+		if (PlayerController)
+		{
+			FRotator CharacterRot = PlayerController->GetControlRotation();
+			// Ignore Pitch
+			TargetRot.Pitch = CharacterRot.Pitch;
+			PlayerController->SetControlRotation(FMath::RInterpTo(CharacterRot, TargetRot, DeltaTime, FocusInterpSpeed));
+		}
+		CameraBoom->SocketOffset = FMath::VInterpTo(CameraBoom->SocketOffset, CameraSocketOffset, DeltaTime, OffsetInterpSpeed);
+
+		CameraLockOn();
+	}
+	else {
+		CameraBoom->SocketOffset = FMath::VInterpTo(CameraBoom->SocketOffset, FVector::ZeroVector, DeltaTime, OffsetInterpSpeed);
+	}
+	
+
+	// Notify Camera Movement
+	NotifyCameraMove(DeltaTime);
+}
+
+#pragma region RemoveLater
 void ARobotPlayerCharacter::AnimationSteps()
 {
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
@@ -648,39 +675,13 @@ void ARobotPlayerCharacter::AnimationSteps()
 	}
 }
 
-
 void ARobotPlayerCharacter::StepForward(float StepDistance)
 {
 	AddMovementInput(GetActorForwardVector(), StepDistance);
 }
+#pragma endregion
 
-/// <summary>
-/// Clearn up Animation State
-/// </summary>
-void ARobotPlayerCharacter::EndAttackAnimation()
-{
-	bIsStepping = false;
-	bImmobile = false;
-	PrevStep = 0.f;
-	CurrStep = 0.f;
-	ActionState = EActionState::EAS_Unoccupied;
-}
-
-void ARobotPlayerCharacter::AddCharacterAbilities()
-{
-	URobotAbilitySystemComponent* RobotASC = CastChecked<URobotAbilitySystemComponent>(AbilitySystemComponent);
-
-	/*if (!HasAuthority()) return;*/
-
-	RobotASC->InitAbilityActorInfo(this, this);
-	RobotASC->AddCharacterAbilities(StartupAbilities);
-
-	RobotASC->RegisterGameplayTagEvent(FGameplayTag::RequestGameplayTag("State.Stepping"), EGameplayTagEventType::NewOrRemoved)
-		.AddUObject(this, &ARobotPlayerCharacter::OnSteppingTagChanged);
-	RobotASC->RegisterGameplayTagEvent(FGameplayTag::RequestGameplayTag("State.Immobile"), EGameplayTagEventType::NewOrRemoved)
-		.AddUObject(this, &ARobotPlayerCharacter::OnImmobileTagChanged);
-}
-
+#pragma region Helper
 FCollisionQueryParams ARobotPlayerCharacter::GetIgnoreCharacterParams() const
 {
 	FCollisionQueryParams Params;
@@ -691,15 +692,6 @@ FCollisionQueryParams ARobotPlayerCharacter::GetIgnoreCharacterParams() const
 	Params.AddIgnoredActor(this);
 
 	return Params;
-}
-
-AActor* ARobotPlayerCharacter::GetFocusedTarget()
-{
-	if (!FocusedActor)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("FocusedActor is nullptr"));
-	}
-	return FocusedActor;
 }
 
 /// Clamp motionwarp distance with dist if no target is locked.
@@ -752,7 +744,9 @@ void ARobotPlayerCharacter::ClampMotionWarpDist(float dist)
 		UE_LOG(LogTemp, Warning, TEXT("MotionWarp Target not Valid"));
 	}
 }
+#pragma endregion
 
+#pragma region Camera
 void ARobotPlayerCharacter::StartCameraMove(FVector Offset, float LengthOffset, float BlendInTime, float BlendOutTime)
 {
 	if (Offset != FVector::ZeroVector) NotifyCameraOffset = Offset;
@@ -792,16 +786,27 @@ void ARobotPlayerCharacter::NotifyCameraMove(float DeltaSeconds)
 	CameraBoom->TargetArmLength = FMath::FInterpTo(
 		CameraBoom->TargetArmLength, DesiredArmLength, DeltaSeconds, -1.f);
 }
+#pragma endregion
 
-void ARobotPlayerCharacter::SetInvulnerability(bool Invulnerable)
+#pragma region Focus
+/// <summary>
+/// 进入FocusTarget模式
+/// Call from Focus GameplayAbility
+/// </summary>
+/// <param name="FocusedTarget"></param>
+void ARobotPlayerCharacter::SetFocusTarget(AActor* FocusedTarget)
 {
-	if (Invulnerable)
-	{
-		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
-	} else
-	{
-		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	}
+	check(FocusedTarget);
+	
+	RobotPlayerMovementComponent->bOrientRotationToMovement = false;
+	RobotPlayerMovementComponent->bUseControllerDesiredRotation = true;
+
+	bIsFocused = true;
+	FocusedActor = FocusedTarget;
+
+	// When set Focus succeeded, change camera mode
+	CameraBoom->bEnableCameraRotationLag = true;
+	CameraBoom->bUsePawnControlRotation = false;
 }
 
 void ARobotPlayerCharacter::CameraLockOn()
@@ -812,3 +817,14 @@ void ARobotPlayerCharacter::CameraLockOn()
 
 	CameraBoom->SetWorldRotation(DesiredRot);
 }
+
+AActor* ARobotPlayerCharacter::GetFocusedTarget()
+{
+	if (!FocusedActor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("FocusedActor is nullptr"));
+	}
+	return FocusedActor;
+}
+
+#pragma endregion

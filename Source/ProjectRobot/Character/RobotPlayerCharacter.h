@@ -9,6 +9,7 @@
 #include "ContextualAnimSceneActorComponent.h"
 #include "AbilitySystemInterface.h"
 #include "GameplayTagContainer.h"
+#include "ProjectRobot/Data/Ability/RobotAbilitySetData.h"
 #include "RobotPlayerCharacter.generated.h"
 
 class UAttackComponent;
@@ -101,6 +102,9 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* AdvanceStateAction;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* ResetStateAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* BlockAction;
@@ -155,9 +159,6 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS", meta = (AllowPrivateAccess = "true"))
 	FGameplayTagContainer FocusTag;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability", meta = (AllowPrivateAccess = "true"))
-	const TObjectPtr<UAttackDefinitionData> LightAttackData;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Attributes")
 	TObjectPtr<UDataTable> DT_StartingAttributes;
@@ -254,8 +255,14 @@ protected:
 	void Dodge();
 
 	void HandleAbilityAction1();
-
-	void AdvanceState();
+	
+	UFUNCTION(BlueprintCallable)
+	void AdvanceRobotState();
+	
+	UFUNCTION(BlueprintCallable)
+	void ResetRobotState();
+	
+	void ApplyAbilitySet(URobotAbilitySetData* AbilitySet);
 
 	void Block();
 
@@ -301,9 +308,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Character")
 	void StepForward(float StepDistance = 1.f);
 
-	UFUNCTION(BlueprintCallable, Category = "Character")
-	void EndAttackAnimation();
-
 	void AddCharacterAbilities();
 
 	FCollisionQueryParams GetIgnoreCharacterParams() const;
@@ -313,7 +317,17 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "GAS|Abilities")
 	TArray<TSubclassOf<UGameplayAbility>> StartupAbilities;
-
+	
+	UPROPERTY(EditAnywhere, Category = "GAS|Abilities")
+	TMap<ERobotState, URobotAbilitySetData*> RobotAbilitySets;
+	
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<URobotAbilitySetData> CurrentAbilitySet;
+	
+	UPROPERTY(VisibleAnywhere)
+	ERobotState RobotState;
+	
+	// TMap<FGameplayTag, FGameplayAbility> SteppingTagCount;
 	/*UPROPERTY(VisibleAnywhere)
 	ECharacterState CharacterState;*/
 
@@ -322,10 +336,7 @@ private:
 
 	UPROPERTY(VisibleAnywhere)
 	ECharacterDirection CharacterDirection;*/
-
-	UPROPERTY(EditDefaultsOnly, Category = Montages)
-	TObjectPtr<UAnimMontage> LightAttackMontage;
-
+	
 	UPROPERTY(EditDefaultsOnly, Category = Transforms)
 	TSubclassOf<AJet> JetBpClass;
 
@@ -337,7 +348,6 @@ private:
 	float CameraLookSensitivity = 1.0f;
 	float RotationSpeed = 400.f;
 	// States
-	uint8 LightAttackStage = 0;
 	bool bIsStepping = false;
 	float PrevStep = 0.f;
 	float CurrStep = 0.f;
@@ -355,12 +365,7 @@ private:
 	// Focus mode
 	FVector FocusOffset = FVector::ZeroVector;      // e.g., your “focus” sideways push
 	float   FocusArmAdd = 0.f;
-
-	// Private Functions
-	void PlayLightAttackMontage();
-
-	void DisableMovementWhenAction();
-
+	
 	void SetDefaultApparel();
 
 	void AnimationSteps();
